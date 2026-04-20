@@ -1,0 +1,79 @@
+{
+  "hero": {
+    "bannerAriaLabel": "PetGround — pet grooming hero illustration",
+    "title": "A bright, cozy\ngrooming day for your pet",
+    "subtitle": "Book online, trusted groomers, gentle care — warm, clean, and full of sunshine.",
+    "bookAppointment": "Book now",
+    "viewServices": "View our services"
+  },
+  "sections": {
+    "whyTitle": "Why PetGround?",
+    "whySubtitle": "Professional skill with genuine love — a calm, happy visit every time.",
+    "servicesTitle": "Our services",
+    "servicesSubtitle": "Basic and full packages to keep pets healthy and looking their best.",
+    "viewAllPricing": "View all services & pricing"
+  },
+  "promotions": {
+    "badge": "Current Promotions",
+    "title": "Limited-Time Grooming Deals",
+    "subtitle": "Pick a warm seasonal offer and book your pet's next happy grooming day.",
+    "validLabel": "Valid until",
+    "cta": "Book now",
+    "items": [
+      {
+        "title": "15% Off First Grooming Visit",
+        "description": "New customers enjoy 15% off on Basic or Full Grooming for the first booking.",
+        "validUntil": "2026-05-31"
+      },
+      {
+        "title": "Second Pet Gets RM15 Off",
+        "description": "Book two pets on the same day under one account and get RM15 off the second pet.",
+        "validUntil": "2026-06-15"
+      },
+      {
+        "title": "Boarding + Grooming Bundle",
+        "description": "Add grooming to your boarding booking and enjoy a special bundled rate.",
+        "validUntil": "2026-06-30"
+      }
+    ]
+  },
+  "featureList": [
+    {
+      "title": "Loving care",
+      "description": "Personalized, gentle handling tailored to each pet’s personality."
+    },
+    {
+      "title": "Professional service",
+      "description": "Quality products and proven techniques for consistent, beautiful results."
+    },
+    {
+      "title": "Easy booking",
+      "description": "Schedule online anytime — fewer messages, more clarity."
+    },
+    {
+      "title": "Pet boarding",
+      "description": "Comfortable stays when you’re away — safe, supervised accommodation so your pet feels at home."
+    },
+    {
+      "title": "Experienced team",
+      "description": "Comfortable with many breeds and temperaments, including shy pets."
+    },
+    {
+      "title": "Low-stress space",
+      "description": "Bright, calm pacing so visits feel easy — almost like a sunny walk."
+    }
+  ],
+  "serviceList": [
+    {
+      "title": "Basic grooming",
+      "duration": "60 min",
+      "features": ["Bath & dry", "Nail trim", "Ear cleaning", "Basic trim"]
+    },
+    {
+      "title": "Full grooming",
+      "duration": "120 min",
+      "features": ["Everything in Basic", "Full styling", "Breed-specific cuts", "Premium products"]
+    }
+  ],
+  "bookService": "Book {{name}}"
+}

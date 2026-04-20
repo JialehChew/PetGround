@@ -1,0 +1,45 @@
+/* Make FullCalendar header toolbar responsive */
+.responsive-calendar-wrapper .fc-header-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.responsive-calendar-wrapper .fc-button,
+.responsive-calendar-wrapper .fc-today-button {
+  font-size: 0.85rem;
+  padding: 0.25em 0.75em;
+  min-width: 32px;
+  min-height: 32px;
+  line-height: 1.2;
+}
+
+.responsive-calendar-wrapper .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* On small screens: shrink font, allow horizontal scroll if needed */
+@media (max-width: 600px) {
+  .responsive-calendar-wrapper .fc-header-toolbar {
+    flex-wrap: nowrap;
+    flex-direction: row;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+  .responsive-calendar-wrapper .fc-toolbar-chunk {
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+  }
+  .responsive-calendar-wrapper .fc-button,
+  .responsive-calendar-wrapper .fc-today-button {
+    font-size: 0.8rem;
+    padding: 0.15em 0.5em;
+    min-width: 28px;
+    min-height: 28px;
+  }
+} 

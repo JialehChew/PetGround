@@ -1,0 +1,159 @@
+{
+  "pageTitle": "Service rates",
+  "pageSubtitle": "Bright, warm, and transparent pricing",
+  "heroAlt": "Professional grooming for your beloved pets, with loving care",
+  "labels": {
+    "includes": "Includes",
+    "notePrefix": "Note:"
+  },
+  "notice": {
+    "title": "Important pricing information",
+    "body": "We can’t give an exact price without meeting your pet first. Rates depend on breed, size, services, and styling. Prices are based on standard size; oversized pets may differ. Grooming does not include heavy de-matting or knot removal. We’ll always confirm a quote before we start."
+  },
+  "dogBasic": {
+    "title": "Dog basic grooming",
+    "duration": "~ 60 mins",
+    "includes": [
+      "Bathing, drying & brushing",
+      "Nail clipping & filing",
+      "Shaving paw pads & sanitary areas",
+      "Ear cleaning & ear hair removal",
+      "Anal gland expression"
+    ]
+  },
+  "dogBasicPricing": [
+    {
+      "category": "Small breed",
+      "price": "from RM35–50",
+      "breeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc."
+    },
+    {
+      "category": "Medium breed",
+      "price": "from RM55–75",
+      "breeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc."
+    },
+    {
+      "category": "Large breed",
+      "price": "from RM80–120",
+      "breeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc."
+    }
+  ],
+  "dogFull": {
+    "title": "Dog full grooming",
+    "duration": "~ 120 mins",
+    "includes": [
+      "Full body clipping, styling or shaving",
+      "Bathing, drying & brushing",
+      "Nail clipping & filing",
+      "Shaving paw pads & sanitary areas",
+      "Ear cleaning & ear hair removal",
+      "Anal gland expression"
+    ]
+  },
+  "dogFullPricing": [
+    {
+      "category": "Small breed",
+      "price": "from RM60–75",
+      "breeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc."
+    },
+    {
+      "category": "Medium breed",
+      "price": "from RM80–95",
+      "breeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc."
+    },
+    {
+      "category": "Large breed",
+      "price": "from RM100–150",
+      "breeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc."
+    }
+  ],
+  "cat": {
+    "title": "Cat grooming",
+    "intro": "Grooming helps remove dust, dander and loose fur, prevents matting, and can support healthy skin and circulation."
+  },
+  "catBasic": {
+    "title": "Basic grooming ~ 60 mins",
+    "price": "from RM60–80",
+    "items": [
+      "Bathing, drying & brushing",
+      "Nail clipping & filing",
+      "Shaving paw pads & sanitary areas",
+      "Ear cleaning & ear hair removal"
+    ]
+  },
+  "catFull": {
+    "title": "Full grooming ~ 120 mins",
+    "price": "from RM100–150",
+    "items": [
+      "Full body clipping, styling or shaving",
+      "Bathing, drying & brushing",
+      "Nail clipping & filing",
+      "Shaving paw pads & sanitary areas",
+      "Ear cleaning & ear hair removal"
+    ]
+  },
+  "sizeGroups": {
+    "title": "Dog size groups",
+    "small": "Small breed",
+    "medium": "Medium breed",
+    "large": "Large breed",
+    "xlarge": "X-large breed",
+    "smallBreeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc.",
+    "mediumBreeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc.",
+    "largeBreeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc.",
+    "xlargeBreeds": "Standard Poodle, Alaskan Malamute, Great Dane, Bernese Mountain Dog, etc.",
+    "note": "This breed list isn’t exhaustive. Chat with our groomers if you don’t see your dog here."
+  },
+  "groomingPolicy": {
+    "pageTitle": "Grooming policy",
+    "intro": "At Pets Ground, we care about health, safety, and comfort. Please read our gentle house rules:",
+    "closingLine1": "We want every visit to feel safe, calm, and happy.",
+    "closingLine2": "Questions? Reach out anytime — thank you for trusting us with your pet.",
+    "items": [
+      {
+        "title": "Cancellations",
+        "body": "Reschedule or cancel at least 24 hours ahead when you can — it helps us welcome other pets warmly. For anything else, WhatsApp or call us at 011-6066 3211."
+      },
+      {
+        "title": "Pricing",
+        "body": "We quote after meeting your pet. Price reflects breed, size, services, and style. Standard-size pricing applies; extra-large pets may differ. Grooming does not include heavy de-matting or knot removal.\n\nReturning guests usually keep the same price unless we let you know otherwise."
+      },
+      {
+        "title": "Punctuality",
+        "body": "Please arrive on time so every pet gets their full pampering window. Life happens — we allow a 10-minute grace period. Running late? Let us know early. After the grace period, we may treat the slot as walk-in and fit you in when we can."
+      },
+      {
+        "title": "Fleas & ticks",
+        "body": "To protect every guest, we can’t groom pets with active flea or tick infestations."
+      },
+      {
+        "title": "Aggressive behaviour",
+        "body": "For dogs who bite or show unsafe aggression, we may need to decline service — everyone’s safety comes first."
+      },
+      {
+        "title": "Cat grooming",
+        "body": "Cats deserve extra gentleness. We don’t use sedation. If your cat is very stressed, fearful of water or dryers, or scratches or bites, we may stop for their wellbeing and ours.\n\nWe only proceed when grooming stays a kind experience for your cat and our team."
+      },
+      {
+        "title": "Vaccinations",
+        "body": "Pets should be up to date on required vaccines (e.g. rabies, distemper, parvovirus). We may ask for proof."
+      },
+      {
+        "title": "Health conditions",
+        "body": "Tell us about illnesses, allergies, or special care — we’ll adjust with love."
+      },
+      {
+        "title": "Style requests",
+        "body": "Share your wishes clearly; results can vary with coat and condition."
+      },
+      {
+        "title": "Matted coats",
+        "body": "Severe mats may need a shave. Regular brushing keeps coats fluffy and comfy."
+      },
+      {
+        "title": "Payment",
+        "body": "Payment is due when service ends. We accept Cash, PayNow, SGQR, NETS, and American Express. NETS or Amex requires a minimum of RM20."
+      }
+    ]
+  }
+}

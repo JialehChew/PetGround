@@ -1,0 +1,98 @@
+{
+  "appName": "PetGround",
+  "language": {
+    "label": "语言",
+    "zh": "简体中文",
+    "en": "English"
+  },
+  "nav": {
+    "serviceRates": "服务与价格",
+    "groomingPolicy": "美容须知",
+    "myAccount": "我的账号",
+    "contactUs": "联系我们",
+    "dashboard": "控制台",
+    "pets": "我的宠物",
+    "appointments": "我的预约",
+    "calendar": "日历",
+    "clients": "客户"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出登录",
+    "signUp": "立即注册"
+  },
+  "actions": {
+    "back": "返回",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "close": "关闭",
+    "view": "查看",
+    "edit": "编辑",
+    "delete": "删除",
+    "submit": "提交",
+    "retry": "重试"
+  },
+  "footer": {
+    "contactTitle": "联系我们",
+    "findUs": "找到我们",
+    "hoursTitle": "营业时间",
+    "mapDirections": "打开地图导航 →",
+    "mapTitle": "门店位置",
+    "venueName": "Pets Ground",
+    "addressLine1": "15, Jalan Rodat 11/KU6",
+    "addressLine2": "Bandar Bukit Raja, 41050 Klang, Selangor",
+    "phoneDisplay": "011-6066 3211",
+    "socialHint": "欢迎通过 WhatsApp 或 Instagram 与我们联系～",
+    "whatsappAria": "通过 WhatsApp 联系",
+    "instagramAria": "在 Instagram 关注我们",
+    "copyright": "© 2025 Pets Ground. 保留所有权利。",
+    "tagline": "毛孩子优先 ♡"
+  },
+  "weekdays": {
+    "mon": "周一",
+    "tue": "周二",
+    "wed": "周三",
+    "thu": "周四",
+    "fri": "周五",
+    "sat": "周六",
+    "sun": "周日",
+    "closed": "休息"
+  },
+  "hours": {
+    "mon": "10:00 – 19:00",
+    "tue": "9:00 – 19:00",
+    "wed": "休息",
+    "thu": "10:00 – 19:00",
+    "fri": "10:00 – 19:00",
+    "sat": "10:00 – 19:00",
+    "sun": "10:00 – 19:00"
+  },
+  "pets": {
+    "pageTitle": "我的宠物",
+    "pageSubtitle": "毛孩子档案，一站式温柔管理",
+    "backDashboard": "返回控制台",
+    "addPet": "添加宠物",
+    "searchPlaceholder": "搜索宠物…",
+    "emptyTitle": "先添加宠物，就可以预约美容啦",
+    "emptyBody": "简单建档，方便美容师了解 TA 的习性，给 TA 更安心的护理。",
+    "emptyCta": "马上添加",
+    "noSearchResults": "没有符合搜索条件的宠物。",
+    "deleteTitle": "删除宠物",
+    "deleteBlockedTitle": "暂时无法删除",
+    "deleteBlockedBody": "{{name}} 还有 {{count}} 个待进行预约。",
+    "deleteBlockedHint": "请先取消或完成相关预约，再删除档案哦。",
+    "deleteConfirm": "确定删除 {{name}} 吗？",
+    "deleteWarning": "将永久删除档案与美容记录，且无法恢复。",
+    "viewAppointments": "查看预约",
+    "deleting": "删除中…",
+    "alertAddFailed": "添加失败，请稍后再试。",
+    "alertUpdateFailed": "更新失败，请稍后再试。",
+    "alertDeleteFailed": "删除失败",
+    "viewDetails": "查看档案",
+    "addedLabel": "添加于",
+    "ageOne": "1 岁",
+    "ageYears": "{{n}} 岁"
+  }
+}

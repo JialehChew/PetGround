@@ -1,0 +1,79 @@
+{
+  "hero": {
+    "bannerAriaLabel": "PetGround 宠物美容主题横幅插图",
+    "title": "给毛孩子一个\n清爽又可爱的美容日",
+    "subtitle": "在线预约、专业美容师、温柔照护——明亮温馨，就像阳光晒过的被窝。",
+    "bookAppointment": "立即预约",
+    "viewServices": "查看服务项目"
+  },
+  "sections": {
+    "whyTitle": "为什么选择 PetGround？",
+    "whySubtitle": "专业与爱心并存，给宝贝最安心的美容体验。",
+    "servicesTitle": "服务项目",
+    "servicesSubtitle": "基础与全套护理，让毛孩子健康又漂亮。",
+    "viewAllPricing": "查看全部服务与价格"
+  },
+  "promotions": {
+    "badge": "当前优惠",
+    "title": "限时宠物美容优惠",
+    "subtitle": "精选热门优惠，马上预约让毛孩子享受暖心护理。",
+    "validLabel": "有效期至",
+    "cta": "立即预约",
+    "items": [
+      {
+        "title": "新客洗护首单 85 折",
+        "description": "首次到店预约基础美容或全套美容，结账自动享受 85 折优惠。",
+        "validUntil": "2026-05-31"
+      },
+      {
+        "title": "双宠同行第 2 只立减 RM15",
+        "description": "同一账号同日预约两只宠物美容服务，第二只宠物立减 RM15。",
+        "validUntil": "2026-06-15"
+      },
+      {
+        "title": "住宿 + 洗护组合优惠",
+        "description": "预约住宿服务并加购洗护，享受组合特价，让宝贝住得舒适又清爽。",
+        "validUntil": "2026-06-30"
+      }
+    ]
+  },
+  "featureList": [
+    {
+      "title": "细心呵护",
+      "description": "每位美容师都会根据宝贝性格，温柔对待、个别化照护。"
+    },
+    {
+      "title": "专业服务",
+      "description": "严选用品与标准流程，让美容效果稳定又安心。"
+    },
+    {
+      "title": "预约超方便",
+      "description": "随时线上预约，时间弹性，不用再反复传讯息确认。"
+    },
+    {
+      "title": "宠物住宿服务",
+      "description": "您外出时的安心托付——舒适、有人看顾的住宿环境，让毛孩子像在家一样放松休息。"
+    },
+    {
+      "title": "经验丰富团队",
+      "description": "熟悉各品种与个性，再害羞的宝贝也能慢慢建立信任。"
+    },
+    {
+      "title": "低压力环境",
+      "description": "明亮柔和的空间与节奏，让美容像出门散步一样轻松。"
+    }
+  ],
+  "serviceList": [
+    {
+      "title": "基础美容",
+      "duration": "60 分钟",
+      "features": ["洗澡吹干", "剪指甲", "清耳朵", "基础修剪"]
+    },
+    {
+      "title": "全套美容",
+      "duration": "120 分钟",
+      "features": ["含基础项目", "全身造型", "品种剪型", "高级洗护"]
+    }
+  ],
+  "bookService": "预约{{name}}"
+}

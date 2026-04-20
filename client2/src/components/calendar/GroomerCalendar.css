@@ -1,0 +1,124 @@
+/* FullCalendar container styles */
+.fullcalendar-container .fc {
+  /* Custom FullCalendar styles */
+}
+
+/* Event styling */
+.fc-event {
+  border-radius: 4px;
+  border: none !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.fc-event-title {
+  font-weight: 600;
+}
+
+.fc-timegrid-event {
+  border-radius: 4px;
+}
+
+.fc-daygrid-event {
+  border-radius: 4px;
+  margin: 1px 0;
+}
+
+/* Button styling */
+.fc-button-primary {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.fc-button-primary:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.fc-button-primary:focus {
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+/* Toolbar styling */
+.fc-toolbar {
+  margin-bottom: 1rem;
+}
+
+.fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Custom appointment status colors for enhanced visual feedback */
+.appointment-confirmed {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+}
+
+.appointment-in-progress {
+  background-color: #f59e0b;
+  border-color: #d97706;
+}
+
+.appointment-completed {
+  background-color: #10b981;
+  border-color: #059669;
+}
+
+.appointment-cancelled {
+  background-color: #6b7280;
+  border-color: #4b5563;
+}
+
+.appointment-no-show {
+  background-color: #990000;
+  border-color: #660000;
+}
+
+.time-block {
+  background-color: #ef4444;
+  border-color: #dc2626;
+}
+
+/* Event text styling */
+.fc-event .fc-event-main {
+  color: #ffffff;
+}
+
+/* Business hours styling */
+.fc-non-business {
+  background-color: rgba(215, 215, 215, 0.3);
+}
+
+/* Today indicator */
+.fc-timegrid-now-indicator-line {
+  border-color: #ef4444;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .fc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .fc-event-title {
+    font-size: 11px;
+  }
+}
+
+/* Selection styling */
+.fc-highlight {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Loading state */
+.fc-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}

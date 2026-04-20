@@ -1,0 +1,159 @@
+{
+  "pageTitle": "服务与价格",
+  "pageSubtitle": "明亮温馨 · 专业定价透明",
+  "heroAlt": "专业宠物美容服务，用心呵护每一位毛孩子",
+  "labels": {
+    "includes": "包含项目",
+    "notePrefix": "温馨提示："
+  },
+  "notice": {
+    "title": "重要定价说明",
+    "body": "在未进行当面评估前，我们无法给出精确报价。美容费用会因品种、体型、所选服务与造型难度而异；标价以标准体型为准，超大型犬只另计。一般美容不含开结或严重打结处理。我们会在开始前与您确认报价，请放心。"
+  },
+  "dogBasic": {
+    "title": "狗狗基础美容",
+    "duration": "约 60 分钟",
+    "includes": [
+      "洗澡、吹干、全身梳理",
+      "剪指甲、磨甲",
+      "脚垫、腹部、私密及臀部周围剃毛",
+      "耳道清洁、拔耳毛",
+      "肛门腺护理"
+    ]
+  },
+  "dogBasicPricing": [
+    {
+      "category": "小型犬",
+      "price": "约 RM35–50 起",
+      "breeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc."
+    },
+    {
+      "category": "中型犬",
+      "price": "约 RM55–75 起",
+      "breeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc."
+    },
+    {
+      "category": "大型犬",
+      "price": "约 RM80–120 起",
+      "breeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc."
+    }
+  ],
+  "dogFull": {
+    "title": "狗狗全套美容",
+    "duration": "约 120 分钟",
+    "includes": [
+      "全身美容修剪、造型或剃毛",
+      "洗澡、吹干、全身梳理",
+      "剪指甲、磨甲",
+      "脚垫、腹部、私密及臀部周围剃毛",
+      "耳道清洁、拔耳毛",
+      "肛门腺护理"
+    ]
+  },
+  "dogFullPricing": [
+    {
+      "category": "小型犬",
+      "price": "约 RM60–75 起",
+      "breeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc."
+    },
+    {
+      "category": "中型犬",
+      "price": "约 RM80–95 起",
+      "breeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc."
+    },
+    {
+      "category": "大型犬",
+      "price": "约 RM100–150 起",
+      "breeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc."
+    }
+  ],
+  "cat": {
+    "title": "猫咪美容",
+    "intro": "美容可帮助去除灰尘、皮屑与浮毛，预防严重打结，也有助于促进皮肤血液循环，让猫咪更舒服、更清爽。"
+  },
+  "catBasic": {
+    "title": "基础美容 · 约 60 分钟",
+    "price": "约 RM60–80 起",
+    "items": [
+      "洗澡、吹干、梳理",
+      "剪指甲、磨甲",
+      "脚垫、腹部、私密及臀部周围剃毛",
+      "耳道清洁、拔耳毛"
+    ]
+  },
+  "catFull": {
+    "title": "全套美容 · 约 120 分钟",
+    "price": "约 RM100–150 起",
+    "items": [
+      "全身修剪、造型或剃毛",
+      "洗澡、吹干、梳理",
+      "剪指甲、磨甲",
+      "脚垫、腹部、私密及臀部周围剃毛",
+      "耳道清洁、拔耳毛"
+    ]
+  },
+  "sizeGroups": {
+    "title": "狗狗体型分组参考",
+    "small": "小型犬",
+    "medium": "中型犬",
+    "large": "大型犬",
+    "xlarge": "超大型犬",
+    "smallBreeds": "Chihuahua, Toy Poodle, Maltese, Shihtzu, Pomeranian, Jack Russell, Silky Terrier, Yorkshire Terrier, Pug, Frenchie, Miniature Schnauzer, Lhasa Apso, Pekingese, Papillion, Westies, Mini Daschund, Chinese Crested, etc.",
+    "mediumBreeds": "Bichon, Jap Spitz, Beagle, Miniature Poodle, Lhasa Apso, Shetland Sheepdog, English Cocker Spaniel, American Cocker Spaniel, Shiba Inu, Corgi, British Bulldog, Coton De Tulear, etc.",
+    "largeBreeds": "Chowchow, Husky, Springer Spaniel, Golden Retriever, Rough Collie, Boxer, Keeshond, Samoyed, Border Collie, Singapore Special / Mongrel, Goldendoodle, Labradoodle, Brittany Spaniel, etc.",
+    "xlargeBreeds": "Standard Poodle, Alaskan Malamute, Great Dane, Bernese Mountain Dog, etc.",
+    "note": "以上品种列表仅供参考，并非完整清单。若未找到您的狗狗品种，欢迎直接咨询我们的美容师。"
+  },
+  "groomingPolicy": {
+    "pageTitle": "美容须知与店规",
+    "intro": "在 Pets Ground，我们把健康、安全与舒适放在第一位。请花一点时间阅读以下温柔约定：",
+    "closingLine1": "愿每一次护理，都是安心又愉快的小旅程。",
+    "closingLine2": "有任何疑问欢迎随时联系我们，感谢把毛孩子交给我们。",
+    "items": [
+      {
+        "title": "取消与改期",
+        "body": "建议提前至少 24 小时改期或取消，方便我们把时段留给其他宝贝。其他咨询欢迎 WhatsApp 或致电 011-6066 3211。"
+      },
+      {
+        "title": "价格说明",
+        "body": "未当面评估前无法给出精确报价，费用会依品种、体型、项目与造型而定；以标准体型为基准，超大体型可能不同。一般美容服务不包含严重打结开结。\n\n老客人通常会延续上次价格，除非我们另行说明。"
+      },
+      {
+        "title": "请准时到店",
+        "body": "准时到达，每位毛孩子才能拥有完整的护理时光。若遇突发状况，我们提供 10 分钟宽限；若会迟到请尽早告知。超过宽限可能改为现场候位安排。"
+      },
+      {
+        "title": "跳蚤与蜱虫",
+        "body": "为保护店内其他宠物与环境，身上有活跃跳蚤或蜱虫的宝贝，我们可能暂时无法接待美容。"
+      },
+      {
+        "title": "具有攻击性的狗狗",
+        "body": "若狗狗有严重咬人或其他不安全行为，为保障人与宠物的安全，我们可能无法提供服务。"
+      },
+      {
+        "title": "猫咪美容",
+        "body": "猫咪需要格外温柔与耐心；我们不使用镇静药物。若猫咪极度紧张、害怕洗澡或吹风、出现抓咬等，我们可能暂停服务。\n\n我们只在确保猫咪与美容师都安全、舒适的前提下继续护理。"
+      },
+      {
+        "title": "疫苗要求",
+        "body": "请确保疫苗依规定接种（如狂犬、犬瘟、细小等），我们可能会要求出示证明。"
+      },
+      {
+        "title": "健康状况",
+        "body": "如有疾病、过敏或特别照护需求，请事先告知，我们会用心配合。"
+      },
+      {
+        "title": "造型沟通",
+        "body": "请尽量清楚描述期望；实际效果会受毛量、毛质与当下状态影响。"
+      },
+      {
+        "title": "严重打结",
+        "body": "严重打结可能需要剃短处理；建议平时勤梳毛，让被毛保持蓬松柔顺。"
+      },
+      {
+        "title": "付款方式",
+        "body": "服务完成后付款。接受现金、PayNow、SGQR、NETS 与美国运通卡；使用 NETS 或美运卡最低消费 RM20。"
+      }
+    ]
+  }
+}
