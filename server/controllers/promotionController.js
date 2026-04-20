@@ -78,7 +78,14 @@ exports.createPromotion = async (req, res) => {
     throw new AppError("Invalid validUntil date", 400, "INVALID_VALID_UNTIL");
   }
 
-  const imageUrl = await uploadToR2(req.file);
+  let imageUrl;
+  try {
+    imageUrl = await uploadToR2(req.file);
+  } catch (err) {
+    console.error("[createPromotion] uploadToR2 failed:", err);
+    throw new AppError("Image processing or upload failed", 500, "UPLOAD_FAILED");
+  }
+
   const promotion = await Promotion.create({
     title: String(title).trim(),
     description: String(description || "").trim(),
@@ -123,7 +130,11 @@ exports.deletePromotion = async (req, res) => {
     throw new AppError("Promotion not found", 404, "PROMOTION_NOT_FOUND");
   }
 
-  await deleteFromR2ByPublicUrl(String(doc.imageUrl || ""));
+  try {
+    await deleteFromR2ByPublicUrl(String(doc.imageUrl || ""));
+  } catch (e) {
+    console.error("[deletePromotion] R2 delete error:", e);
+  }
 
   await Promotion.deleteOne({ _id: id });
   return res.status(200).json({ message: "Promotion deleted successfully" });

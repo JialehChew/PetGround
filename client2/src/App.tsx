@@ -21,6 +21,7 @@ import PetPage from './pages/PetPage';
 import AppointmentPage from './pages/AppointmentPage';
 import AppointmentDetailPage from './pages/AppointmentDetailPage';
 import GroomerClientPage from './pages/GroomerClientPage';
+import GroomerClientDetailPage from './pages/GroomerClientDetailPage';
 import GroomerCalendarPage from './pages/GroomerCalendarPage';
 import PetDetailPage from './pages/PetDetailPage';
 import ServiceRatesPage from './pages/ServiceRatesPage';
@@ -94,8 +95,9 @@ function App() {
                 <Route path="/pets/:petId" element={<PetDetailPage />} />
               </Route>
               
-              {/* Protected routes for groomers only */}
+              {/* Groomer + admin: calendar; clients list; client detail (specific path first) */}
               <Route element={<ProtectedRoute allowedRoles={["groomer", "admin"]} />}>
+                <Route path="/clients/:userId" element={<GroomerClientDetailPage />} />
                 <Route path="/clients" element={<ClientsEntry />} />
                 <Route path="/calendar" element={<GroomerCalendarPage />} />
               </Route>

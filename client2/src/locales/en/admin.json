@@ -79,6 +79,10 @@
     "listSubtitle": "View all owner profiles and jump into client detail quickly.",
     "listTableTitle": "Client list",
     "listTableDesc": "Search owners by name or email.",
+    "groomerListSubtitle": "Owners who have booked with you at least once.",
+    "groomerListTableDesc": "Search your clients by name or email.",
+    "groomerEmpty": "No clients yet. When owners book with you, they will appear here.",
+    "groomerServiceHistoryDesc": "Your appointments with this client only.",
     "searchPlaceholder": "Search by name or email...",
     "columns": {
       "name": "Name",

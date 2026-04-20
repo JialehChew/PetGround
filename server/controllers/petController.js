@@ -209,13 +209,26 @@ exports.uploadPetImage = (req, res) => {
         return res.status(400).json({ error: "No image file received. Use field name 'image'." });
       }
 
-      const previousImageUrl = pet.imageUrl;
-      const imageUrl = await uploadToR2(req.file);
+      const oldImageUrl = pet.imageUrl;
+      if (oldImageUrl) {
+        try {
+          await deleteFromR2ByPublicUrl(oldImageUrl);
+        } catch (e) {
+          console.error("Failed to delete old pet image from R2:", e);
+        }
+      }
+
+      let imageUrl;
+      try {
+        imageUrl = await uploadToR2(req.file);
+      } catch (e) {
+        console.error("Pet image upload/processing failed:", e);
+        return res.status(400).json({ error: "Image processing or upload failed. Try another image." });
+      }
+
       pet.imageUrl = imageUrl;
       pet.updatedAt = new Date();
       await pet.save();
-
-      await deleteFromR2ByPublicUrl(previousImageUrl);
 
       return res.status(200).json({
         message: "Pet avatar uploaded successfully",
@@ -264,10 +277,20 @@ exports.deletePet = async (req, res) => {
       });
     }
 
+    const imageUrlToRemove = pet.imageUrl;
+    try {
+      if (imageUrlToRemove) {
+        await deleteFromR2ByPublicUrl(imageUrlToRemove);
+      }
+    } catch (e) {
+      console.error("Failed to delete pet avatar from R2 on soft-delete:", e);
+    }
+
     // soft delete: mark as deleted instead of removing
     pet.isDeleted = true;
     pet.deletedAt = new Date();
     pet.updatedAt = new Date();
+    pet.imageUrl = "";
     await pet.save();
 
     res.status(200).json({

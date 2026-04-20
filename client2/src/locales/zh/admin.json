@@ -79,6 +79,10 @@
     "listSubtitle": "查看所有 owner 客户资料，快速进入客户详情与服务记录。",
     "listTableTitle": "客户列表",
     "listTableDesc": "按姓名或邮箱搜索客户。",
+    "groomerListSubtitle": "至少与您预约过一次的客户会显示在这里。",
+    "groomerListTableDesc": "在您的客户中按姓名或邮箱搜索。",
+    "groomerEmpty": "暂无客户。当有主人向您预约后，将自动出现在此列表。",
+    "groomerServiceHistoryDesc": "仅显示您与该客户之间的预约记录。",
     "searchPlaceholder": "输入姓名或邮箱搜索客户...",
     "columns": {
       "name": "姓名",

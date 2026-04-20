@@ -6,6 +6,12 @@ const { isAuthenticated, isGroomer } = require("../middleware/roleMiddleware");
 
 router.use(verifyToken);
 
+// Groomer-only CRM: clients linked via appointments (must be before "/:id" routes)
+router.get("/me/clients", isGroomer, groomerController.getMyClients);
+router.get("/me/clients/:userId/pets", isGroomer, groomerController.getMyClientPets);
+router.get("/me/clients/:userId/appointments", isGroomer, groomerController.getMyClientAppointments);
+router.get("/me/clients/:userId", isGroomer, groomerController.getMyClientById);
+
 // get all groomers
 router.get("/", isAuthenticated, groomerController.getAllGroomers);
 // get groomer by id

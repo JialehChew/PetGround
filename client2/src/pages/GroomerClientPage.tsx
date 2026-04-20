@@ -1,83 +1,138 @@
-import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { 
-  UsersIcon
-} from '@heroicons/react/24/outline';
-import PageTransition from '../components/layout/PageTransition';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import { MagnifyingGlassIcon, UserGroupIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import PageTransition from "../components/layout/PageTransition";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import type { AdminUserListItem } from "../types";
+import { getGroomerMyClients } from "../services/groomerClientService";
+import { toast } from "sonner";
 
-const GroomerClientPage = () => {
-  const { t } = useTranslation('admin');
+export default function GroomerClientPage() {
+  const { t, i18n } = useTranslation("admin");
+  const navigate = useNavigate();
+  const locale = i18n.language?.startsWith("zh") ? "zh-CN" : "en-US";
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        setLoading(true);
+        const rows = await getGroomerMyClients(search);
+        setUsers(rows);
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast.error(t("clients.toastLoadFailTitle"), {
+          description: msg || t("clients.toastLoadFailDesc"),
+        });
+      } finally {
+        setLoading(false);
+      }
+    }, 260);
+    return () => clearTimeout(timer);
+  }, [search, t]);
+
+  const rows = useMemo(() => users, [users]);
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <UsersIcon className="h-8 w-8 text-gray-600" />
-              {t('clients.title')}
-            </h1>
-            <p className="mt-2 text-gray-600">
-              {t('clients.subtitle')}
-            </p>
-          </motion.div>
-
-          {/* Development Notice */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Card className="bg-white shadow">
-              <CardHeader className="text-center">
-                <CardTitle className="text-gray-900 text-xl">
-                  {t('clients.devTitle')}
-                </CardTitle>
-                <CardDescription className="text-gray-600">
-                  {t('clients.devSubtitle')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center space-y-4">
-                <p className="text-gray-700">
-                  {t('clients.devIntro')}
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">{t('clients.featureProfilesTitle')}</h3>
-                    <p className="text-sm text-gray-600">{t('clients.featureProfilesDesc')}</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">{t('clients.featureHistoryTitle')}</h3>
-                    <p className="text-sm text-gray-600">{t('clients.featureHistoryDesc')}</p>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">{t('clients.featureAnalyticsTitle')}</h3>
-                    <p className="text-sm text-gray-600">{t('clients.featureAnalyticsDesc')}</p>
-                  </div>
-                </div>
-
-                <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-800 font-medium">
-                    {t('clients.expectedRelease')}
-                  </p>
+      <div className="min-h-screen bg-gradient-to-b from-[#FFFDF7] via-[#FAF6EB]/90 to-[#FFE8A3]/15">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+            <Card className="overflow-hidden rounded-[2rem] border-2 border-[#F9C74F]/50 bg-gradient-to-br from-white via-[#FFFDF7] to-[#FFEFC2]/85 shadow-lg shadow-amber-200/30">
+              <CardContent className="relative p-6 sm:p-8">
+                <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#FFDE42]/35 blur-2xl" />
+                <div className="relative flex flex-col gap-3">
+                  <h1 className="flex items-center gap-2 text-2xl font-extrabold text-amber-950 sm:text-3xl">
+                    <UserGroupIcon className="h-8 w-8 text-amber-700" />
+                    {t("clients.listTitle")}
+                  </h1>
+                  <p className="text-sm font-medium text-amber-900/80">{t("clients.groomerListSubtitle")}</p>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
+
+          <Card className="rounded-3xl border-2 border-amber-200 bg-gradient-to-br from-white via-[#FFFDF7] to-[#FAF6EB] shadow-md">
+            <CardHeader>
+              <CardTitle className="text-amber-950">{t("clients.listTableTitle")}</CardTitle>
+              <CardDescription className="text-amber-900/70">{t("clients.groomerListTableDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex items-center gap-2">
+                <div className="relative w-full">
+                  <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-700/70" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t("clients.searchPlaceholder")}
+                    className="rounded-2xl border-amber-200 bg-white/85 pl-9"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-amber-200 bg-white/75">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("clients.columns.name")}</TableHead>
+                      <TableHead>{t("clients.columns.email")}</TableHead>
+                      <TableHead>{t("clients.columns.phone")}</TableHead>
+                      <TableHead>{t("clients.columns.pets")}</TableHead>
+                      <TableHead>{t("clients.columns.createdAt")}</TableHead>
+                      <TableHead>{t("clients.columns.actions")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-amber-900/75">
+                          {t("clients.loading")}
+                        </TableCell>
+                      </TableRow>
+                    ) : rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-amber-900/75">
+                          {t("clients.groomerEmpty")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((u) => (
+                        <TableRow key={u._id} className="hover:bg-amber-50/60">
+                          <TableCell className="font-semibold text-[#3F2A1E]">{u.name}</TableCell>
+                          <TableCell className="text-[#3F2A1E]">{u.email}</TableCell>
+                          <TableCell className="text-amber-900/80">{u.phone || "-"}</TableCell>
+                          <TableCell className="text-amber-900/80">{u.petCount ?? 0}</TableCell>
+                          <TableCell className="text-amber-900/80">
+                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString(locale) : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-2xl border-amber-300 bg-white text-amber-900 hover:bg-amber-50"
+                              onClick={() => navigate(`/clients/${u._id}`)}
+                            >
+                              {t("clients.viewDetailBtn")}
+                              <ChevronRightIcon className="ml-1 h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PageTransition>
   );
-};
-
-export default GroomerClientPage; 
+}
