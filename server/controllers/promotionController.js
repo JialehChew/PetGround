@@ -1,30 +1,9 @@
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 const Promotion = require("../models/Promotion");
 const AppError = require("../utils/AppError");
-
-const uploadsRoot = path.resolve(__dirname, "../../client2/public/uploads/promotions");
-fs.mkdirSync(uploadsRoot, { recursive: true });
+const { uploadToR2, deleteFromR2ByPublicUrl } = require("../utils/upload");
 
 const isProduction = process.env.NODE_ENV === "production";
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      fs.mkdirSync(uploadsRoot, { recursive: true });
-      cb(null, uploadsRoot);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const safeExt = ext || ".jpg";
-    const uniqueName = `promo-${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExt}`;
-    cb(null, uniqueName);
-  },
-});
 
 const fileFilter = (req, file, cb) => {
   if (!file.mimetype || !file.mimetype.startsWith("image/")) {
@@ -34,7 +13,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const uploadPromotionImage = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024,
@@ -74,7 +53,10 @@ exports.createPromotion = async (req, res) => {
   if (!isProduction && process.env.DEBUG_HTTP === "1") {
     console.log("[createPromotion] content-type:", req.headers["content-type"]);
     console.log("[createPromotion] body keys:", Object.keys(req.body || {}));
-    console.log("[createPromotion] req.file:", req.file ? { filename: req.file.filename, mimetype: req.file.mimetype } : null);
+    console.log(
+      "[createPromotion] req.file:",
+      req.file ? { mimetype: req.file.mimetype, size: req.file.size } : null
+    );
   }
 
   if (!title || !String(title).trim()) {
@@ -96,7 +78,7 @@ exports.createPromotion = async (req, res) => {
     throw new AppError("Invalid validUntil date", 400, "INVALID_VALID_UNTIL");
   }
 
-  const imageUrl = `/uploads/promotions/${req.file.filename}`;
+  const imageUrl = await uploadToR2(req.file);
   const promotion = await Promotion.create({
     title: String(title).trim(),
     description: String(description || "").trim(),
@@ -141,14 +123,7 @@ exports.deletePromotion = async (req, res) => {
     throw new AppError("Promotion not found", 404, "PROMOTION_NOT_FOUND");
   }
 
-  const relativePath = String(doc.imageUrl || "");
-  if (relativePath.startsWith("/uploads/promotions/")) {
-    const fileName = path.basename(relativePath);
-    const imagePath = path.join(uploadsRoot, fileName);
-    if (fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
-  }
+  await deleteFromR2ByPublicUrl(String(doc.imageUrl || ""));
 
   await Promotion.deleteOne({ _id: id });
   return res.status(200).json({ message: "Promotion deleted successfully" });

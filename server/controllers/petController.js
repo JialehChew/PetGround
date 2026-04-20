@@ -1,34 +1,14 @@
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 const Pet = require("../models/Pet");
 const { Appointment } = require("../models/Appointment");
+const { uploadToR2, deleteFromR2ByPublicUrl } = require("../utils/upload");
 
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const petUploadsRoot = path.resolve(__dirname, "../../client2/public/uploads/pets");
-fs.mkdirSync(petUploadsRoot, { recursive: true });
-
-const petImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      fs.mkdirSync(petUploadsRoot, { recursive: true });
-      cb(null, petUploadsRoot);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
-    const uniqueName = `pet-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
-});
-
 const petImageUpload = multer({
-  storage: petImageStorage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     if (!allowedMimeTypes.includes(file.mimetype)) {
@@ -38,15 +18,6 @@ const petImageUpload = multer({
   },
   limits: { fileSize: 5 * 1024 * 1024 },
 });
-
-function removeOldPetImage(relativeUrl) {
-  if (!relativeUrl || !relativeUrl.startsWith("/uploads/pets/")) return;
-  const fileName = path.basename(relativeUrl);
-  const absolutePath = path.join(petUploadsRoot, fileName);
-  if (fs.existsSync(absolutePath)) {
-    fs.unlinkSync(absolutePath);
-  }
-}
 
 exports.searchPetsForStaffBooking = async (req, res) => {
   try {
@@ -239,11 +210,12 @@ exports.uploadPetImage = (req, res) => {
       }
 
       const previousImageUrl = pet.imageUrl;
-      pet.imageUrl = `/uploads/pets/${req.file.filename}`;
+      const imageUrl = await uploadToR2(req.file);
+      pet.imageUrl = imageUrl;
       pet.updatedAt = new Date();
       await pet.save();
 
-      removeOldPetImage(previousImageUrl);
+      await deleteFromR2ByPublicUrl(previousImageUrl);
 
       return res.status(200).json({
         message: "Pet avatar uploaded successfully",

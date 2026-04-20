@@ -7,8 +7,6 @@ const app = express();
 
 const mongoose = require("mongoose");
 const cors = require("cors");
-const path = require("path");
-
 const { requestDebugMiddleware } = require("./middleware/requestDebugMiddleware");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
@@ -150,7 +148,6 @@ app.use("/api/groomers", groomerRouter);
 app.use("/api/appointments", appointmentRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/promotions", promotionRouter);
-app.use("/uploads", express.static(path.resolve(__dirname, "../client2/public/uploads")));
 
 // Global error handler (must be last among middleware)
 app.use(errorMiddleware);
