@@ -1,14 +1,34 @@
 const dotenv = require("dotenv");
 dotenv.config();
+
 const express = require("express");
 require("express-async-errors");
 const app = express();
+
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+
 const { requestDebugMiddleware } = require("./middleware/requestDebugMiddleware");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
+// ✅ CORS（必须在最前）
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true
+}));
+
+app.options('*', cors());
+
+app.use(express.json());
+
+// 👉 routes（确保你有 require routes）
+const routes = require("./routes");
+app.use("/api", routes);
+
+// 👉 error middleware（最后）
+app.use(errorMiddleware);
 const isProduction = process.env.NODE_ENV === "production";
 
 // Set up allowed origins from environment variables
