@@ -145,6 +145,7 @@ export interface Promotion {
   export interface LoginResponse {
     user: User;
     token: string;
+    accessToken?: string;
     message?: string;
     /** Present after register: whether the verification email was sent */
     verificationEmailSent?: boolean;

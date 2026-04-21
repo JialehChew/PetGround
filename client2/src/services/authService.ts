@@ -12,8 +12,9 @@ const initializeAuth = (): boolean => {
 const register = async (userData: RegisterData): Promise<LoginResponse> => {
   try {
     const response = await api.post('/auth/register', userData);
-    if (response.data.token) {
-      localStorage.setItem("authToken", response.data.token);
+    const token = response.data.accessToken || response.data.token;
+    if (token) {
+      localStorage.setItem("authToken", token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
     }
     return response.data;
@@ -31,8 +32,9 @@ const login = async (email: string, password: string): Promise<LoginResponse> =>
       password 
     });
     
-    if (response.data.token) {
-      localStorage.setItem("authToken", response.data.token);
+    const token = response.data.accessToken || response.data.token;
+    if (token) {
+      localStorage.setItem("authToken", token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
     }
     return response.data;
@@ -43,7 +45,12 @@ const login = async (email: string, password: string): Promise<LoginResponse> =>
   }
 };
 
-const logout = (): void => {
+const logout = async (): Promise<void> => {
+  try {
+    await api.post('/auth/logout');
+  } catch (error) {
+    console.error("Logout API error:", error);
+  }
   localStorage.removeItem("authToken");
   localStorage.removeItem("user");
 };

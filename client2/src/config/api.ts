@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import type { AxiosError, AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
 // create base URL from env or default to localhost:3000/api
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -22,6 +22,36 @@ const createApiInstance = (): AxiosInstance => {
     },
     withCredentials: true,
   });
+
+  const refreshClient = axios.create({
+    baseURL: BASE_URL,
+    timeout: 10000,
+    withCredentials: true,
+  });
+
+  let isRefreshing = false;
+  let pendingRequests: Array<(token: string | null) => void> = [];
+
+  const enqueuePendingRequest = (cb: (token: string | null) => void) => {
+    pendingRequests.push(cb);
+  };
+
+  const resolvePendingRequests = (token: string | null) => {
+    pendingRequests.forEach((cb) => cb(token));
+    pendingRequests = [];
+  };
+
+  const shouldSkipRefresh = (requestUrl?: string) => {
+    if (!requestUrl) return false;
+    return [
+      '/auth/login',
+      '/auth/register',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/refresh',
+      '/auth/verify-email',
+    ].some((path) => requestUrl.includes(path));
+  };
 
   // request interceptor to add auth token
   instance.interceptors.request.use(
@@ -55,16 +85,62 @@ const createApiInstance = (): AxiosInstance => {
   // response interceptor for error handling
   instance.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error: AxiosError) => {
       console.error('API Error:', error.response?.data || error.message);
-      
-      if (error.response?.status === 401) {
-        // clear token and redirect to login on 401
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+
+      const originalRequest = (error.config || {}) as AxiosRequestConfig & { _retry?: boolean };
+      const status = error.response?.status;
+      const requestUrl = originalRequest.url;
+
+      if (status === 401 && !shouldSkipRefresh(requestUrl)) {
+        if (originalRequest._retry) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            enqueuePendingRequest((newToken) => {
+              if (!newToken) {
+                reject(error);
+                return;
+              }
+              originalRequest.headers = originalRequest.headers || {};
+              (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+              resolve(instance(originalRequest));
+            });
+          });
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const refreshResponse = await refreshClient.post('/auth/refresh');
+          const newToken = refreshResponse.data?.accessToken || refreshResponse.data?.token;
+          if (!newToken) {
+            throw new Error('No access token returned from refresh endpoint');
+          }
+
+          localStorage.setItem('authToken', newToken);
+          resolvePendingRequests(newToken);
+
+          originalRequest.headers = originalRequest.headers || {};
+          (originalRequest.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+          return instance(originalRequest);
+        } catch (refreshError) {
+          resolvePendingRequests(null);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
       }
-      
+
       return Promise.reject(error);
     }
   );

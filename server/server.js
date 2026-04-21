@@ -7,6 +7,7 @@ const app = express();
 
 const mongoose = require("mongoose");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const { requestDebugMiddleware } = require("./middleware/requestDebugMiddleware");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
@@ -20,6 +21,7 @@ app.use(cors({
 app.options('*', cors());
 
 app.use(express.json());
+app.use(cookieParser());
 
 // 👉 routes（确保你有 require routes）
 const routes = require("./routes");

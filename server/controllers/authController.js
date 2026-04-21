@@ -1,7 +1,11 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { generateToken } = require("../utils/jwt");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/jwt");
 const { pickLang } = require("../utils/locale");
 const {
   sendPasswordResetEmail,
@@ -25,6 +29,37 @@ function isValidMalaysiaMobileLocal(digits) {
 
 function registerMsg(lang, zh, en) {
   return lang === "zh" ? zh : en;
+}
+
+function setRefreshTokenCookie(res, refreshToken) {
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  });
+}
+
+function clearRefreshTokenCookie(res) {
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/",
+  });
+}
+
+function sendAuthSuccess(res, userDoc, message, status = 200) {
+  const accessToken = generateAccessToken(userDoc);
+  const refreshToken = generateRefreshToken(userDoc);
+  setRefreshTokenCookie(res, refreshToken);
+  return res.status(status).json({
+    message,
+    user: userToPublicJson(userDoc),
+    token: accessToken,
+    accessToken,
+  });
 }
 
 // Register a new user (owner or groomer)
@@ -97,9 +132,6 @@ exports.register = async (req, res) => {
 
     await newUser.save();
 
-    // Generate JWT token
-    const token = generateToken(newUser);
-
     let verificationEmailSent = true;
     let verificationEmailNotice = null;
     try {
@@ -125,10 +157,14 @@ exports.register = async (req, res) => {
           : "Your account is ready, but we couldn’t send the verification email. You can still sign in — please try again later or contact the shop.";
     }
 
+    const accessToken = generateAccessToken(newUser);
+    const refreshToken = generateRefreshToken(newUser);
+    setRefreshTokenCookie(res, refreshToken);
     res.status(201).json({
       message: "User registered successfully",
       user: userToPublicJson(newUser),
-      token,
+      token: accessToken,
+      accessToken,
       verificationEmailSent,
       verificationEmailNotice,
     });
@@ -187,14 +223,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate JWT token
-    const token = generateToken(user);
-
-    res.status(200).json({
-      message: "Login successful",
-      user: userToPublicJson(user),
-      token,
-    });
+    return sendAuthSuccess(res, user, "Login successful");
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Server error during login" });
@@ -375,14 +404,53 @@ exports.changeMyPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    const token = generateToken(user);
-    return res.status(200).json({
-      message: "Password updated successfully",
-      token,
-      user: userToPublicJson(user),
-    });
+    return sendAuthSuccess(res, user, "Password updated successfully");
   } catch (error) {
     console.error("changeMyPassword error:", error);
     return res.status(500).json({ error: "Server error" });
+  }
+};
+
+/** POST /api/auth/refresh — issue a new access token from refresh cookie */
+exports.refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ error: "Refresh token missing" });
+    }
+
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({ error: "Invalid refresh token" });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({ error: "User not found for refresh token" });
+    }
+
+    const accessToken = generateAccessToken(user);
+    return res.status(200).json({
+      token: accessToken,
+      accessToken,
+    });
+  } catch (error) {
+    console.error("refreshToken error:", error);
+    return res.status(500).json({ error: "Server error during token refresh" });
+  }
+};
+
+/** POST /api/auth/logout — clear refresh cookie + client token */
+exports.logout = async (req, res) => {
+  try {
+    clearRefreshTokenCookie(res);
+    return res.status(200).json({ message: "Logout successful" });
+  } catch (error) {
+    console.error("logout error:", error);
+    return res.status(500).json({ error: "Server error during logout" });
   }
 };
