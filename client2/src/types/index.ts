@@ -180,6 +180,8 @@ export interface Promotion {
     startTime?: string;
     /** Boarding: YYYY-MM-DD */
     checkInDate?: string;
+    /** Boarding: YYYY-MM-DD，不包含当天 */
+    checkOutDate?: string;
     serviceType: 'basic' | 'full' | 'boarding';
     appointmentSource: GroomerBookingSource;
     specialInstructions?: string;
@@ -218,6 +220,8 @@ export interface Promotion {
     startTime?: string;
     /** Boarding: YYYY-MM-DD */
     checkInDate?: string;
+    /** Boarding: YYYY-MM-DD，不包含当天 */
+    checkOutDate?: string;
   }
 
   export type UpdateAppointmentData = Partial<CreateAppointmentData>;

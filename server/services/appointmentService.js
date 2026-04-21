@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 const { Appointment } = require("../models/Appointment");
 const GroomerDayLock = require("../models/GroomerDayLock");
 const { deriveAppointmentDateKey } = require("../utils/slotKeys");
-const { normalizeToMinute } = require("../utils/date");
+const { normalizeToMinute, normalizeToUtcDayStart } = require("../utils/date");
 
 /** HTTP 409 body for i18n (frontend maps code → locale string). */
 const SLOT_CONFLICT_MESSAGE = "该时间段已被预约";
@@ -51,6 +51,120 @@ function groomerDayLockId(groomerId, startTime) {
   return `${groomerId.toString()}_${deriveAppointmentDateKey(startTime)}`;
 }
 
+function addUtcDays(date, days) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function getLegacyBoardingRange(startTime, endTime) {
+  const normalizedStart = normalizeToUtcDayStart(startTime);
+  const normalizedEnd = normalizeToUtcDayStart(endTime);
+  const endInstant = new Date(endTime);
+  const hasPartialCheckoutDay = endInstant.getTime() > normalizedEnd.getTime();
+  let checkout = hasPartialCheckoutDay ? addUtcDays(normalizedEnd, 1) : normalizedEnd;
+  if (checkout <= normalizedStart) {
+    checkout = addUtcDays(normalizedStart, 1);
+  }
+  return { checkInDate: normalizedStart, checkOutDate: checkout };
+}
+
+function resolveBoardingDateRange(appointmentLike) {
+  if (appointmentLike?.checkInDate && appointmentLike?.checkOutDate) {
+    const checkInDate = normalizeToUtcDayStart(appointmentLike.checkInDate);
+    const checkOutDate = normalizeToUtcDayStart(appointmentLike.checkOutDate);
+    return { checkInDate, checkOutDate };
+  }
+  return getLegacyBoardingRange(appointmentLike.startTime, appointmentLike.endTime);
+}
+
+function buildBoardingOverlapFilter(rangeStart, rangeEnd) {
+  return {
+    $or: [
+      {
+        checkInDate: { $lt: rangeEnd },
+        checkOutDate: { $gt: rangeStart },
+      },
+      {
+        $and: [
+          {
+            $or: [{ checkInDate: { $exists: false } }, { checkInDate: null }],
+          },
+          {
+            $or: [{ checkOutDate: { $exists: false } }, { checkOutDate: null }],
+          },
+          { startTime: { $lt: rangeEnd } },
+          { endTime: { $gt: rangeStart } },
+        ],
+      },
+    ],
+  };
+}
+
+async function countBoardingOccupancyForDay({
+  groomerId,
+  dayStart,
+  excludeAppointmentId = null,
+  session = null,
+}) {
+  const normalizedDayStart = normalizeToUtcDayStart(dayStart);
+  const dayEnd = addUtcDays(normalizedDayStart, 1);
+  const query = {
+    groomerId,
+    serviceType: "boarding",
+    status: { $nin: ["cancelled", "completed"] },
+    ...buildBoardingOverlapFilter(normalizedDayStart, dayEnd),
+  };
+  if (excludeAppointmentId) {
+    query._id = {
+      $ne: mongoose.isValidObjectId(excludeAppointmentId)
+        ? new mongoose.Types.ObjectId(excludeAppointmentId)
+        : excludeAppointmentId,
+    };
+  }
+  const countQ = Appointment.countDocuments(query);
+  if (session) countQ.session(session);
+  return countQ;
+}
+
+async function isBoardingAvailable({
+  groomerId,
+  checkInDate,
+  checkOutDate,
+  capacity = BOARDING_CAPACITY,
+  excludeAppointmentId = null,
+  session = null,
+}) {
+  const start = normalizeToUtcDayStart(checkInDate);
+  const end = normalizeToUtcDayStart(checkOutDate);
+  for (let d = new Date(start); d < end; d = addUtcDays(d, 1)) {
+    const count = await countBoardingOccupancyForDay({
+      groomerId,
+      dayStart: d,
+      excludeAppointmentId,
+      session,
+    });
+    if (count >= capacity) return false;
+  }
+  return true;
+}
+
+function getBoardingLockIds(groomerId, checkInDate, checkOutDate) {
+  const ids = [];
+  for (let d = new Date(checkInDate); d < checkOutDate; d = addUtcDays(d, 1)) {
+    ids.push(`${groomerId.toString()}_${deriveAppointmentDateKey(d)}_boarding`);
+  }
+  return ids.sort();
+}
+
+function getLockIdsForAppointment(appointmentLike) {
+  if (appointmentLike?.serviceType !== "boarding") {
+    return [groomerDayLockId(appointmentLike.groomerId, appointmentLike.startTime)];
+  }
+  const { checkInDate, checkOutDate } = resolveBoardingDateRange(appointmentLike);
+  return getBoardingLockIds(appointmentLike.groomerId, checkInDate, checkOutDate);
+}
+
 /**
  * Time overlap with active appointments in the same service conflict group.
  * Excluded from blocking: cancelled, completed.
@@ -86,37 +200,16 @@ async function findBlockingOverlap(
   const filter = buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType);
   const normalizedStart = normalizeToMinute(startTime);
   const normalizedEnd = normalizeToMinute(endTime);
-  console.log("UTC CHECK:", {
-    startTime: normalizedStart,
-    endTime: normalizedEnd,
-    isoStart: normalizedStart.toISOString(),
-    isoEnd: normalizedEnd.toISOString(),
-  });
   if (newServiceType === "boarding") {
-    const countQ = Appointment.countDocuments({
+    const available = await isBoardingAvailable({
       groomerId,
-      serviceType: "boarding",
-      startTime: { $lt: normalizedEnd },
-      endTime: { $gt: normalizedStart },
-      status: { $nin: ["cancelled", "completed"] },
-      ...(excludeAppointmentId && {
-        _id: {
-          $ne: mongoose.isValidObjectId(excludeAppointmentId)
-            ? new mongoose.Types.ObjectId(excludeAppointmentId)
-            : excludeAppointmentId,
-        },
-      }),
+      checkInDate: normalizedStart,
+      checkOutDate: normalizedEnd,
+      capacity: BOARDING_CAPACITY,
+      excludeAppointmentId,
+      session,
     });
-    if (session) countQ.session(session);
-    const count = await countQ;
-    if (excludeAppointmentId) {
-      console.log("BOARDING LOAD:", {
-        groomerId: String(groomerId),
-        count,
-        capacity: BOARDING_CAPACITY,
-      });
-    }
-    if (count >= BOARDING_CAPACITY) {
+    if (!available) {
       throwBoardingCapacityFull();
     }
     return null;
@@ -186,15 +279,17 @@ function isTransactionUnsupportedError(err) {
  * Serialize same-groomer/same-day writes, then overlap-check, then save (create).
  */
 async function insertAppointmentWithSlotGuard(appointmentDoc) {
-  const lockId = groomerDayLockId(appointmentDoc.groomerId, appointmentDoc.startTime);
+  const lockIds = getLockIdsForAppointment(appointmentDoc);
   const session = await mongoose.startSession();
 
   const work = async (sess) => {
-    await GroomerDayLock.findOneAndUpdate(
-      { _id: lockId },
-      { $inc: { seq: 1 } },
-      { upsert: true, session: sess }
-    );
+    for (const lockId of lockIds) {
+      await GroomerDayLock.findOneAndUpdate(
+        { _id: lockId },
+        { $inc: { seq: 1 } },
+        { upsert: true, session: sess }
+      );
+    }
     const hit = await findBlockingOverlap(
       appointmentDoc.groomerId,
       appointmentDoc.startTime,
@@ -208,12 +303,20 @@ async function insertAppointmentWithSlotGuard(appointmentDoc) {
   };
 
   try {
-    await session.withTransaction(async () => {
-      await work(session);
-    });
+    await session.withTransaction(
+      async () => {
+        await work(session);
+      },
+      {
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority" },
+      }
+    );
   } catch (err) {
     if (isTransactionUnsupportedError(err)) {
-      await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      for (const lockId of lockIds) {
+        await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      }
       const hit = await findBlockingOverlap(
         appointmentDoc.groomerId,
         appointmentDoc.startTime,
@@ -227,6 +330,7 @@ async function insertAppointmentWithSlotGuard(appointmentDoc) {
       return;
     }
     if (err?.isSlotConflict) throw err;
+    if (err?.isCapacityFull) throw err;
     throw err;
   } finally {
     await session.endSession();
@@ -237,15 +341,17 @@ async function insertAppointmentWithSlotGuard(appointmentDoc) {
  * Reschedule / staff edits: same sequence with excludeAppointmentId.
  */
 async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppointmentId) {
-  const lockId = groomerDayLockId(appointmentDoc.groomerId, appointmentDoc.startTime);
+  const lockIds = getLockIdsForAppointment(appointmentDoc);
   const session = await mongoose.startSession();
 
   const work = async (sess) => {
-    await GroomerDayLock.findOneAndUpdate(
-      { _id: lockId },
-      { $inc: { seq: 1 } },
-      { upsert: true, session: sess }
-    );
+    for (const lockId of lockIds) {
+      await GroomerDayLock.findOneAndUpdate(
+        { _id: lockId },
+        { $inc: { seq: 1 } },
+        { upsert: true, session: sess }
+      );
+    }
     const hit = await findBlockingOverlap(
       appointmentDoc.groomerId,
       appointmentDoc.startTime,
@@ -259,12 +365,20 @@ async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppoint
   };
 
   try {
-    await session.withTransaction(async () => {
-      await work(session);
-    });
+    await session.withTransaction(
+      async () => {
+        await work(session);
+      },
+      {
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority" },
+      }
+    );
   } catch (err) {
     if (isTransactionUnsupportedError(err)) {
-      await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      for (const lockId of lockIds) {
+        await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      }
       const hit = await findBlockingOverlap(
         appointmentDoc.groomerId,
         appointmentDoc.startTime,
@@ -278,6 +392,7 @@ async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppoint
       return;
     }
     if (err?.isSlotConflict) throw err;
+    if (err?.isCapacityFull) throw err;
     throw err;
   } finally {
     await session.endSession();
@@ -332,5 +447,8 @@ module.exports = {
   insertAppointmentWithSlotGuard,
   insertAppointmentWithAutoAssignedGroomer,
   saveAppointmentUpdateWithSlotGuard,
+  isBoardingAvailable,
+  countBoardingOccupancyForDay,
+  resolveBoardingDateRange,
   isDuplicateKeyError,
 };

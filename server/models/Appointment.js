@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const { deriveAppointmentDateKey, deriveTimeSlotKey } = require("../utils/slotKeys");
-const { computeBoardingWindow } = require("../utils/bookingHelpers");
+const { normalizeToUtcDayStart } = require("../utils/date");
 
 const AppointmentSchema = new Schema({
   // Manual walk-in bookings may not have a pet/owner selected yet.
@@ -257,27 +257,17 @@ AppointmentSchema.pre("save", function (next) {
     if (!this.checkInDate || !this.checkOutDate) {
       return next(new Error("住宿预约需提供入住日与退房日"));
     }
-    let checkInYmd;
-    if (this.checkInDate instanceof Date) {
-      const d = this.checkInDate;
-      checkInYmd = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
-        d.getUTCDate()
-      ).padStart(2, "0")}`;
-    } else {
-      checkInYmd = String(this.checkInDate).slice(0, 10);
+    const checkInDay = normalizeToUtcDayStart(this.checkInDate);
+    const checkOutDay = normalizeToUtcDayStart(this.checkOutDate);
+    if (checkOutDay <= checkInDay) {
+      return next(new Error("退房日期必须晚于入住日期"));
     }
-    const win = computeBoardingWindow(checkInYmd);
-    if (!win) return next(new Error("入住日期格式无效"));
-    const eps = 2 * 60 * 1000;
-    if (Math.abs(win.start.getTime() - this.startTime.getTime()) > eps) {
-      return next(new Error("住宿入住时间须为当天 11:00 (MYT)"));
-    }
-    if (Math.abs(win.end.getTime() - this.endTime.getTime()) > eps) {
-      return next(new Error("住宿退房时间须为翌日 17:00 (MYT)"));
-    }
-    if (!this.constructor.isBusinessDayMYT(this.startTime)) {
-      return next(new Error("入住日为本店休息日，无法预约住宿"));
-    }
+    this.checkInDate = checkInDay;
+    this.checkOutDate = checkOutDay;
+    this.startTime = checkInDay;
+    this.endTime = checkOutDay;
+    const durationMinutes = Math.round((checkOutDay.getTime() - checkInDay.getTime()) / (1000 * 60));
+    this.duration = Math.max(30, durationMinutes);
   } else {
     if (!this.constructor.isBusinessDayMYT(this.startTime)) {
       const err = new Error("Appointments cannot be scheduled on days when we are closed");

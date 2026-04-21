@@ -3,11 +3,8 @@ const User = require("../models/User");
 const Pet = require("../models/Pet");
 const {
   durationMinutesForGrooming,
-  computeBoardingWindow,
   PET_SIZES,
-  utcMidnightFromYmd,
 } = require("../utils/bookingHelpers");
-const { deriveAppointmentDateKey } = require("../utils/slotKeys");
 const {
   sendBookingConfirmationEmail,
   sendGroomerNotificationEmail,
@@ -23,7 +20,7 @@ const {
   BOARDING_CAPACITY_FULL_CODE,
   isDuplicateKeyError,
 } = require("../services/appointmentService");
-const { ensureUTCMinuteDate, normalizeToMinute } = require("../utils/date");
+const { ensureUTCMinuteDate, normalizeToMinute, normalizeToUtcDayStart } = require("../utils/date");
 
 function respondSlotConflict(res) {
   const body = slotConflictBody();
@@ -40,6 +37,17 @@ function assertPetSize(pet, message = "请先为宠物设置体型后再预约")
     return message;
   }
   return null;
+}
+
+function parseBoardingDateRange(checkInInput, checkOutInput) {
+  const checkIn = normalizeToUtcDayStart(checkInInput);
+  const checkOut = checkOutInput
+    ? normalizeToUtcDayStart(checkOutInput)
+    : new Date(checkIn.getTime() + 24 * 60 * 60 * 1000);
+  if (checkOut <= checkIn) {
+    throw new Error("退房日期必须晚于入住日期");
+  }
+  return { checkIn, checkOut };
 }
 
 /** Map Mongoose / runtime errors to HTTP status + message for API clients */
@@ -64,7 +72,7 @@ exports.createAppointment = async (req, res) => {
     if (req.user.role !== "owner") {
       return res.status(403).json({ error: "Only pet owners can book appointments" });
     }
-    const { petId, groomerId, serviceType, startTime, checkInDate } = req.body;
+    const { petId, groomerId, serviceType, startTime, checkInDate, checkOutDate } = req.body;
 
     if (!petId || !serviceType) {
       return res.status(400).json({ error: "Missing required appointment information" });
@@ -92,20 +100,22 @@ exports.createAppointment = async (req, res) => {
     let checkOutMid;
 
     if (serviceType === "boarding") {
-      const ymd = (checkInDate || "").toString().slice(0, 10);
-      if (!ymd) {
+      if (!checkInDate) {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
-      const win = computeBoardingWindow(ymd);
-      if (!win) return res.status(400).json({ error: "入住日期无效" });
-      appointmentStart = win.start;
-      appointmentEnd = win.end;
-      duration = win.durationMinutes;
-      checkInMid = utcMidnightFromYmd(ymd);
-      checkOutMid = utcMidnightFromYmd(deriveAppointmentDateKey(win.end));
-      if (!checkInMid || !checkOutMid) {
-        return res.status(400).json({ error: "入住日期无效" });
+      try {
+        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        checkInMid = range.checkIn;
+        checkOutMid = range.checkOut;
+      } catch (e) {
+        return res.status(400).json({ error: e.message || "入住/退房日期无效" });
       }
+      appointmentStart = checkInMid;
+      appointmentEnd = checkOutMid;
+      duration = Math.max(
+        30,
+        Math.round((appointmentEnd.getTime() - appointmentStart.getTime()) / (1000 * 60))
+      );
     } else {
       if (!startTime) {
         return res.status(400).json({ error: "Missing required appointment information" });
@@ -263,6 +273,7 @@ exports.createAppointmentAsGroomer = async (req, res) => {
       specialInstructions,
       appointmentSource: rawSource,
       checkInDate,
+      checkOutDate,
       petSize: bodyPetSize,
     } = req.body;
     let groomerId = req.user.id;
@@ -316,18 +327,22 @@ exports.createAppointmentAsGroomer = async (req, res) => {
     let checkOutMid;
 
     if (serviceType === "boarding") {
-      const ymd = (checkInDate || "").toString().slice(0, 10);
-      if (!ymd) {
+      if (!checkInDate) {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
-      const win = computeBoardingWindow(ymd);
-      if (!win) return res.status(400).json({ error: "入住日期无效" });
-      appointmentStart = win.start;
-      appointmentEnd = win.end;
-      duration = win.durationMinutes;
-      checkInMid = utcMidnightFromYmd(ymd);
-      checkOutMid = utcMidnightFromYmd(deriveAppointmentDateKey(win.end));
-      if (!checkInMid || !checkOutMid) return res.status(400).json({ error: "入住日期无效" });
+      try {
+        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        checkInMid = range.checkIn;
+        checkOutMid = range.checkOut;
+      } catch (e) {
+        return res.status(400).json({ error: e.message || "入住/退房日期无效" });
+      }
+      appointmentStart = checkInMid;
+      appointmentEnd = checkOutMid;
+      duration = Math.max(
+        30,
+        Math.round((appointmentEnd.getTime() - appointmentStart.getTime()) / (1000 * 60))
+      );
     } else {
       if (!startTime) {
         return res.status(400).json({ error: "Missing start time for grooming appointment" });
@@ -590,7 +605,7 @@ exports.getAppointmentById = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
   try {
     const appointmentId = req.params.id;
-    const { petId, groomerId, serviceType, startTime, checkInDate } = req.body;
+    const { petId, groomerId, serviceType, startTime, checkInDate, checkOutDate } = req.body;
 
     if (!petId || !groomerId || !serviceType) {
       return res.status(400).json({ error: "Missing required appointment information" });
@@ -637,18 +652,22 @@ exports.updateAppointment = async (req, res) => {
     let checkOutMid;
 
     if (serviceType === "boarding") {
-      const ymd = (checkInDate || "").toString().slice(0, 10);
-      if (!ymd) {
+      if (!checkInDate) {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
-      const win = computeBoardingWindow(ymd);
-      if (!win) return res.status(400).json({ error: "入住日期无效" });
-      appointmentStart = win.start;
-      appointmentEnd = win.end;
-      duration = win.durationMinutes;
-      checkInMid = utcMidnightFromYmd(ymd);
-      checkOutMid = utcMidnightFromYmd(deriveAppointmentDateKey(win.end));
-      if (!checkInMid || !checkOutMid) return res.status(400).json({ error: "入住日期无效" });
+      try {
+        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        checkInMid = range.checkIn;
+        checkOutMid = range.checkOut;
+      } catch (e) {
+        return res.status(400).json({ error: e.message || "入住/退房日期无效" });
+      }
+      appointmentStart = checkInMid;
+      appointmentEnd = checkOutMid;
+      duration = Math.max(
+        30,
+        Math.round((appointmentEnd.getTime() - appointmentStart.getTime()) / (1000 * 60))
+      );
     } else {
       if (!startTime) {
         return res.status(400).json({ error: "Missing start time for grooming appointment" });

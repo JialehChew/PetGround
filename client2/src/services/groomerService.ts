@@ -18,6 +18,12 @@ interface GroomerSchedule {
   timeBlocks: TimeBlock[];
 }
 
+export interface BoardingOccupancy {
+  date: string;
+  occupied: number;
+  capacity: number;
+}
+
 // define time block interface
 interface TimeBlock {
   _id: string;
@@ -116,6 +122,24 @@ const getGroomerSchedule = async (
   }
 };
 
+const getBoardingOccupancy = async (
+  groomerId: string,
+  startDate: string,
+  endDate: string
+): Promise<BoardingOccupancy[]> => {
+  try {
+    const startIso = toUtcIsoMinute(startDate);
+    const endIso = toUtcIsoMinute(endDate);
+    const response = await api.get('/boarding/occupancy', {
+      params: { groomerId, startDate: startIso, endDate: endIso },
+    });
+    return response.data;
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: ApiError } };
+    throw apiError.response?.data || { error: "Failed to fetch boarding occupancy" };
+  }
+};
+
 const createTimeBlock = async (timeBlockData: CreateTimeBlockData): Promise<TimeBlock> => {
   try {
     const response = await api.post('/groomers/time-blocks', timeBlockData);
@@ -154,6 +178,7 @@ const groomerService = {
   getGroomerById,
   getGroomerAvailability,
   getGroomerSchedule,
+  getBoardingOccupancy,
   createTimeBlock,
   updateTimeBlock,
   deleteTimeBlock,

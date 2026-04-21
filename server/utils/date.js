@@ -23,6 +23,14 @@ function ensureUTCMinuteDate(value) {
   return normalizeToMinute(ensureUTCDate(value));
 }
 
+function normalizeToUtcDayStart(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error("Invalid date value");
+  }
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+}
+
 function parseYmdToUtcDayRange(ymd) {
   if (typeof ymd !== "string" || !YMD_REGEX.test(ymd)) {
     throw new Error("Invalid date format, must be YYYY-MM-DD");
@@ -48,6 +56,7 @@ module.exports = {
   ensureUTCDate,
   normalizeToMinute,
   ensureUTCMinuteDate,
+  normalizeToUtcDayStart,
   parseYmdToUtcDayRange,
   parseUtcDayRangeFromIso,
 };

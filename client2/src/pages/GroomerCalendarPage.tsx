@@ -16,7 +16,7 @@ import GroomerCalendar from '../components/calendar/GroomerCalendar';
 import TimeBlockCreationDialog from '../components/calendar/TimeBlockCreationDialog';
 import AppointmentBookingModal from '../components/appointments/AppointmentBookingModal';
 import GroomerManualBookingModal from '../components/appointments/GroomerManualBookingModal';
-import groomerService, { type GroomerSchedule } from '../services/groomerService';
+import groomerService, { type GroomerSchedule, type BoardingOccupancy } from '../services/groomerService';
 import { toast } from "sonner";
 import type { Appointment, User } from '../types';
 import { petsForStaffReschedule } from '../utils/staffBooking';
@@ -29,6 +29,7 @@ const GroomerCalendarPage = () => {
   const [schedule, setSchedule] = useState<GroomerSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [occupancy, setOccupancy] = useState<BoardingOccupancy[]>([]);
   const [isTimeBlockDialogOpen, setIsTimeBlockDialogOpen] = useState(false);
   const [manualBookOpen, setManualBookOpen] = useState(false);
   const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
@@ -49,6 +50,18 @@ const GroomerCalendarPage = () => {
       const scheduleTarget = user.role === 'owner' ? user._id : 'all';
       const scheduleData = await groomerService.getGroomerSchedule(scheduleTarget, startDate, endDate);
       setSchedule(scheduleData);
+      const occupancyTarget =
+        user.role === 'admin' ? allGroomers[0]?._id : user.role === 'groomer' ? user._id : null;
+      if (occupancyTarget) {
+        const occupancyData = await groomerService.getBoardingOccupancy(
+          occupancyTarget,
+          startDate,
+          endDate
+        );
+        setOccupancy(occupancyData);
+      } else {
+        setOccupancy([]);
+      }
     } catch (err) {
       console.error('Error loading schedule:', err);
       setError(t('calendarPage.loadError'));
@@ -58,7 +71,7 @@ const GroomerCalendarPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?._id, t]);
+  }, [user?._id, user?.role, t, allGroomers]);
 
   // handle date range changes (when user navigates calendar)
   const handleDatesSet = useCallback((start: Date, end: Date) => {
@@ -170,6 +183,7 @@ const GroomerCalendarPage = () => {
                 ref={calendarRef}
                 schedule={schedule}
                 loading={loading}
+                occupancy={occupancy}
                 onDatesSet={handleDatesSet}
                 onScheduleUpdate={handleScheduleUpdate}
                 onStaffReschedule={(a) => setRescheduleAppt(a)}

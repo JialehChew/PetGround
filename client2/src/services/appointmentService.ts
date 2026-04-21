@@ -62,6 +62,9 @@ const createAppointment = async (appointmentData: CreateAppointmentData): Promis
     if (appointmentData.checkInDate) {
       payload.checkInDate = ymdToUtcIso(appointmentData.checkInDate);
     }
+    if (appointmentData.checkOutDate) {
+      payload.checkOutDate = ymdToUtcIso(appointmentData.checkOutDate);
+    }
     const response = await api.post('/appointments', payload);
     return response.data.appointment || response.data;
   } catch (error: unknown) {
@@ -101,6 +104,9 @@ const updateAppointment = async (appointmentId: string, appointmentData: UpdateA
     if (appointmentData.checkInDate) {
       payload.checkInDate = ymdToUtcIso(appointmentData.checkInDate);
     }
+    if (appointmentData.checkOutDate) {
+      payload.checkOutDate = ymdToUtcIso(appointmentData.checkOutDate);
+    }
     const response = await api.put(`/appointments/${appointmentId}`, payload);
     return response.data.appointment || response.data;
   } catch (error: unknown) {
@@ -127,6 +133,9 @@ const createGroomerBooking = async (
     }
     if (payload.checkInDate) {
       normalizedPayload.checkInDate = ymdToUtcIso(payload.checkInDate);
+    }
+    if (payload.checkOutDate) {
+      normalizedPayload.checkOutDate = ymdToUtcIso(payload.checkOutDate);
     }
     const response = await api.post('/appointments/groomer-booking', normalizedPayload);
     return response.data.appointment || response.data;
