@@ -21,6 +21,7 @@ const {
   slotConflictBody,
   isDuplicateKeyError,
 } = require("../services/appointmentService");
+const { ensureUTCMinuteDate, normalizeToMinute } = require("../utils/date");
 
 function respondSlotConflict(res) {
   const body = slotConflictBody();
@@ -102,16 +103,19 @@ exports.createAppointment = async (req, res) => {
       if (!startTime) {
         return res.status(400).json({ error: "Missing required appointment information" });
       }
-      appointmentStart = new Date(startTime);
-      if (isNaN(appointmentStart.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
+      try {
+        appointmentStart = ensureUTCMinuteDate(startTime);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
       }
       duration = durationMinutesForGrooming(pet.size);
       if (!duration) {
         return res.status(400).json({ error: "无法根据体型计算服务时长" });
       }
-      appointmentEnd = new Date(appointmentStart.getTime() + duration * 60 * 1000);
+      appointmentEnd = normalizeToMinute(new Date(appointmentStart.getTime() + duration * 60 * 1000));
     }
+    appointmentStart = normalizeToMinute(appointmentStart);
+    appointmentEnd = normalizeToMinute(appointmentEnd);
 
     let resolvedGroomerId = groomerId || null;
     if (resolvedGroomerId) {
@@ -319,13 +323,16 @@ exports.createAppointmentAsGroomer = async (req, res) => {
       if (!startTime) {
         return res.status(400).json({ error: "Missing start time for grooming appointment" });
       }
-      appointmentStart = new Date(startTime);
-      if (isNaN(appointmentStart.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
+      try {
+        appointmentStart = ensureUTCMinuteDate(startTime);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
       }
       duration = durationMinutesForGrooming(effectiveSize);
-      appointmentEnd = new Date(appointmentStart.getTime() + duration * 60 * 1000);
+      appointmentEnd = normalizeToMinute(new Date(appointmentStart.getTime() + duration * 60 * 1000));
     }
+    appointmentStart = normalizeToMinute(appointmentStart);
+    appointmentEnd = normalizeToMinute(appointmentEnd);
 
     const groomer = await User.findOne({ _id: groomerId, role: "groomer" });
     if (!groomer) {
@@ -636,13 +643,19 @@ exports.updateAppointment = async (req, res) => {
       if (!startTime) {
         return res.status(400).json({ error: "Missing start time for grooming appointment" });
       }
-      appointmentStart = new Date(startTime);
+      try {
+        appointmentStart = ensureUTCMinuteDate(startTime);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
+      }
       duration = durationMinutesForGrooming(pet.size);
       if (!duration) {
         return res.status(400).json({ error: "无法根据体型计算服务时长" });
       }
-      appointmentEnd = new Date(appointmentStart.getTime() + duration * 60 * 1000);
+      appointmentEnd = normalizeToMinute(new Date(appointmentStart.getTime() + duration * 60 * 1000));
     }
+    appointmentStart = normalizeToMinute(appointmentStart);
+    appointmentEnd = normalizeToMinute(appointmentEnd);
 
     const currentTime = new Date();
     if (appointmentStart < currentTime) {

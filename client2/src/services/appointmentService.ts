@@ -9,6 +9,7 @@ import type {
   GroomerCreateBookingPayload,
 } from "../types";
 import { api } from '../config/api';
+import { toUtcIsoMinute, ymdToUtcIso } from "../utils/time";
 
 interface TimeSlot {
   start: Date;
@@ -54,7 +55,14 @@ const getAppointmentById = async (appointmentId: string): Promise<Appointment> =
 
 const createAppointment = async (appointmentData: CreateAppointmentData): Promise<Appointment> => {
   try {
-    const response = await api.post('/appointments', appointmentData);
+    const payload: Record<string, unknown> = { ...appointmentData };
+    if (appointmentData.startTime) {
+      payload.startTime = toUtcIsoMinute(appointmentData.startTime);
+    }
+    if (appointmentData.checkInDate) {
+      payload.checkInDate = ymdToUtcIso(appointmentData.checkInDate);
+    }
+    const response = await api.post('/appointments', payload);
     return response.data.appointment || response.data;
   } catch (error: unknown) {
     console.error('Error creating appointment:', error);
@@ -86,7 +94,14 @@ const updateAppointmentStatus = async (appointmentId: string, status: Appointmen
 
 const updateAppointment = async (appointmentId: string, appointmentData: UpdateAppointmentData): Promise<Appointment> => {
   try {
-    const response = await api.put(`/appointments/${appointmentId}`, appointmentData);
+    const payload: Record<string, unknown> = { ...appointmentData };
+    if (appointmentData.startTime) {
+      payload.startTime = toUtcIsoMinute(appointmentData.startTime);
+    }
+    if (appointmentData.checkInDate) {
+      payload.checkInDate = ymdToUtcIso(appointmentData.checkInDate);
+    }
+    const response = await api.put(`/appointments/${appointmentId}`, payload);
     return response.data.appointment || response.data;
   } catch (error: unknown) {
     console.error('Error updating appointment:', error);
@@ -106,7 +121,14 @@ const createGroomerBooking = async (
   payload: GroomerCreateBookingPayload
 ): Promise<Appointment> => {
   try {
-    const response = await api.post('/appointments/groomer-booking', payload);
+    const normalizedPayload: Record<string, unknown> = { ...payload };
+    if (payload.startTime) {
+      normalizedPayload.startTime = toUtcIsoMinute(payload.startTime);
+    }
+    if (payload.checkInDate) {
+      normalizedPayload.checkInDate = ymdToUtcIso(payload.checkInDate);
+    }
+    const response = await api.post('/appointments/groomer-booking', normalizedPayload);
     return response.data.appointment || response.data;
   } catch (error: unknown) {
     console.error('Error creating groomer booking:', error);

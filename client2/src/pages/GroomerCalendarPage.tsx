@@ -20,6 +20,7 @@ import groomerService, { type GroomerSchedule } from '../services/groomerService
 import { toast } from "sonner";
 import type { Appointment, User } from '../types';
 import { petsForStaffReschedule } from '../utils/staffBooking';
+import { toUtcIsoMinute } from '../utils/time';
 
 const GroomerCalendarPage = () => {
   const { t } = useTranslation('booking');
@@ -43,8 +44,8 @@ const GroomerCalendarPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const startDate = start.toISOString().split('T')[0];
-      const endDate = end.toISOString().split('T')[0];
+      const startDate = toUtcIsoMinute(start);
+      const endDate = toUtcIsoMinute(end);
       const scheduleTarget = user.role === 'owner' ? user._id : 'all';
       const scheduleData = await groomerService.getGroomerSchedule(scheduleTarget, startDate, endDate);
       setSchedule(scheduleData);

@@ -4,6 +4,7 @@ const { Appointment } = require("../models/Appointment");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const { sendAdminNewPasswordEmail } = require("../services/emailService");
+const { ensureUTCDate } = require("../utils/date");
 
 /**
  * Admin-only: create a groomer account.
@@ -150,8 +151,14 @@ exports.getClientAppointments = async (req, res) => {
       return res.status(400).json({ error: "Target user is not an owner" });
     }
 
-    const from = req.query.from ? new Date(String(req.query.from)) : null;
-    const to = req.query.to ? new Date(String(req.query.to)) : null;
+    let from = null;
+    let to = null;
+    try {
+      from = req.query.from ? ensureUTCDate(String(req.query.from)) : null;
+      to = req.query.to ? ensureUTCDate(String(req.query.to)) : null;
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
+    }
     const startTime = {};
     if (from && !Number.isNaN(from.getTime())) startTime.$gte = from;
     if (to && !Number.isNaN(to.getTime())) startTime.$lte = to;

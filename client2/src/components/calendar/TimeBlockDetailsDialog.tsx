@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import groomerService, { type TimeBlock } from '../../services/groomerService';
 import RecurringOptions from './RecurringOptions';
 import { createRecurringTimeBlocks, blockTypeOptions } from '../../utils/timeBlockUtils';
+import { toLocalDate, toLocalClock } from '../../utils/time';
 
 interface TimeBlockDetailsDialogProps {
   isOpen: boolean;
@@ -83,19 +84,9 @@ const TimeBlockDetailsDialog = ({
   }, [timeBlock, isOpen]);
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
+      date: toLocalDate(dateString),
+      time: toLocalClock(dateString),
     };
   };
 

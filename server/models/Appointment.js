@@ -122,7 +122,7 @@ AppointmentSchema.statics.getMYTDayOfWeek = function (utcDate) {
 
 // helper function to check if a day is a business day
 AppointmentSchema.statics.isBusinessDay = function (date) {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = new Date(date).getUTCDay();
   return BUSINESS_HOURS[dayOfWeek] !== null;
 };
 
@@ -134,7 +134,7 @@ AppointmentSchema.statics.isBusinessDayMYT = function (utcInstant) {
 
 // helper function to get business hours for a specific day
 AppointmentSchema.statics.getBusinessHours = function (date) {
-  const dayOfWeek = new Date(date).getDay();
+  const dayOfWeek = new Date(date).getUTCDay();
   return BUSINESS_HOURS[dayOfWeek];
 };
 
@@ -312,13 +312,13 @@ AppointmentSchema.pre("save", function (next) {
 // added these static methods to simplify availability checks, controller will be a lot cleaner
 // appointments that still occupy slots (cancelled/completed are excluded)
 AppointmentSchema.statics.getGroomerConfirmedAppointments = async function (groomerId, date) {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const dayKey = deriveAppointmentDateKey(new Date(date));
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+  const dayKey = deriveAppointmentDateKey(startOfDay);
 
   return await this.find({
     groomerId,
@@ -446,11 +446,12 @@ TimeBlockSchema.pre("save", function (next) {
 
 // static method to get all time blocks for a groomer on a specific date
 TimeBlockSchema.statics.getGroomerTimeBlocks = async function (groomerId, date) {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
 
   return await this.find({
     groomerId,

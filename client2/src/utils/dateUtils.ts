@@ -1,5 +1,6 @@
 // Date utility functions for formatting and display
 import type { TimeSlot } from '../types';
+import { toLocalTime } from './time';
 
 // format date for html5 input fields (YYYY-MM-DD)
 export const formatDateForInput = (date: string | Date): string => {
@@ -24,19 +25,7 @@ export const formatDateWithDay = (dateString: string): string => {
 
 // format time for display
 export const formatTimeRange = (startTime: string | Date, endTime: string | Date): string => {
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-
-  const startStr = start.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endStr = end.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return `${startStr} - ${endStr}`;
+  return `${toLocalTime(startTime)} - ${toLocalTime(endTime)}`;
 };
 
 // added this to filter out past time slots if selected date is today

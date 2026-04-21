@@ -1,5 +1,6 @@
 import { api } from '../config/api';
 import type { User, ApiError, TimeSlot, Appointment } from '../types';
+import { toUtcIsoMinute } from '../utils/time';
 
 // define slot response interface for API responses
 interface SlotResponse {
@@ -80,7 +81,7 @@ const getGroomerAvailability = async (
   duration: number = 60
 ): Promise<TimeSlot[]> => {
   try {
-    const formattedDate = date instanceof Date ? date.toISOString().split("T")[0] : date;
+    const formattedDate = date instanceof Date ? toUtcIsoMinute(date) : toUtcIsoMinute(date);
     const response = await api.get(
       `/groomers/${groomerId}/availability?date=${formattedDate}&duration=${duration}`
     );
@@ -103,8 +104,10 @@ const getGroomerSchedule = async (
   endDate: string
 ): Promise<GroomerSchedule> => {
   try {
+    const startIso = toUtcIsoMinute(startDate);
+    const endIso = toUtcIsoMinute(endDate);
     const response = await api.get(`/groomers/${groomerId}/schedule`, {
-      params: { startDate, endDate }
+      params: { startDate: startIso, endDate: endIso }
     });
     return response.data;
   } catch (error: unknown) {

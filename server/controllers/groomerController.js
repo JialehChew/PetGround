@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Pet = require("../models/Pet");
 const { Appointment, TimeBlock } = require("../models/Appointment");
+const {
+  ensureUTCDate,
+  ensureUTCMinuteDate,
+  parseYmdToUtcDayRange,
+  parseUtcDayRangeFromIso,
+} = require("../utils/date");
 
 async function assertGroomerKnowsOwner(groomerId, ownerId) {
   if (!ownerId) return false;
@@ -11,6 +17,14 @@ async function assertGroomerKnowsOwner(groomerId, ownerId) {
 
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseDayRangeInput(input) {
+  const value = String(input || "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return parseYmdToUtcDayRange(value);
+  }
+  return parseUtcDayRangeFromIso(value);
 }
 
 exports.getAllGroomers = async (req, res) => {
@@ -60,14 +74,16 @@ exports.getGroomerAvailability = async (req, res) => {
       return res.status(400).json({ error: "Duration must be 60, 90, or 120 minutes" });
     }
 
-    // parse date and check if valid
-    const appointmentDate = new Date(date);
-    if (isNaN(appointmentDate.getTime())) {
-      return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+    let appointmentDate;
+    try {
+      const dayRange = parseDayRangeInput(date);
+      appointmentDate = dayRange.start;
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid date format. Use ISO UTC string." });
     }
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
     if (appointmentDate < today) {
       return res.status(400).json({ error: "Cannot book appointments for past dates" });
     }
@@ -128,19 +144,19 @@ exports.getGroomerSchedule = async (req, res) => {
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ error: "Start date and end date are required (YYYY-MM-DD)" });
+      return res.status(400).json({ error: "Start date and end date are required (ISO UTC)" });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+    let start;
+    let end;
+    try {
+      const startRange = parseDayRangeInput(startDate);
+      const endRange = parseDayRangeInput(endDate);
+      start = startRange.start;
+      end = endRange.end;
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid date format. Use ISO UTC string." });
     }
-
-    // set time to cover full days
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
 
     // Staff can request an aggregated schedule using /groomers/all/schedule.
     // Admin can also fallback to aggregated view when a non-groomer id is passed.
@@ -206,11 +222,13 @@ exports.createTimeBlock = async (req, res) => {
       return res.status(400).json({ error: "Start time and end time are required" });
     }
 
-    const blockStart = new Date(startTime);
-    const blockEnd = new Date(endTime);
-
-    if (isNaN(blockStart.getTime()) || isNaN(blockEnd.getTime())) {
-      return res.status(400).json({ error: "Invalid date format" });
+    let blockStart;
+    let blockEnd;
+    try {
+      blockStart = ensureUTCMinuteDate(startTime);
+      blockEnd = ensureUTCMinuteDate(endTime);
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
     }
 
     if (blockStart >= blockEnd) {
@@ -288,11 +306,13 @@ exports.updateTimeBlock = async (req, res) => {
     }
 
     if (startTime && endTime) {
-      const blockStart = new Date(startTime);
-      const blockEnd = new Date(endTime);
-
-      if (isNaN(blockStart.getTime()) || isNaN(blockEnd.getTime())) {
-        return res.status(400).json({ error: "Invalid date format" });
+      let blockStart;
+      let blockEnd;
+      try {
+        blockStart = ensureUTCMinuteDate(startTime);
+        blockEnd = ensureUTCMinuteDate(endTime);
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
       }
 
       if (blockStart >= blockEnd) {
@@ -545,8 +565,14 @@ exports.getMyClientAppointments = async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    const from = req.query.from ? new Date(String(req.query.from)) : null;
-    const to = req.query.to ? new Date(String(req.query.to)) : null;
+    let from = null;
+    let to = null;
+    try {
+      from = req.query.from ? ensureUTCDate(String(req.query.from)) : null;
+      to = req.query.to ? ensureUTCDate(String(req.query.to)) : null;
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid date format, must be ISO UTC string" });
+    }
     const startTime = {};
     if (from && !Number.isNaN(from.getTime())) startTime.$gte = from;
     if (to && !Number.isNaN(to.getTime())) startTime.$lte = to;

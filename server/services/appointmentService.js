@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const { Appointment } = require("../models/Appointment");
 const GroomerDayLock = require("../models/GroomerDayLock");
 const { deriveAppointmentDateKey } = require("../utils/slotKeys");
+const { normalizeToMinute } = require("../utils/date");
 
 /** HTTP 409 body for i18n (frontend maps code → locale string). */
 const SLOT_CONFLICT_MESSAGE = "该时间段已被预约";
@@ -45,13 +46,15 @@ function groomerDayLockId(groomerId, startTime) {
  * Excluded from blocking: cancelled, completed.
  */
 function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType) {
+  const normalizedStart = normalizeToMinute(startTime);
+  const normalizedEnd = normalizeToMinute(endTime);
   const conflictTypes = getConflictTypes(newServiceType);
   const q = {
     groomerId,
     status: { $nin: ["cancelled", "completed"] },
     serviceType: { $in: conflictTypes },
-    startTime: { $lt: endTime },
-    endTime: { $gt: startTime },
+    startTime: { $lt: normalizedEnd },
+    endTime: { $gt: normalizedStart },
   };
   if (excludeAppointmentId) {
     const normalizedExcludeId = mongoose.isValidObjectId(excludeAppointmentId)
@@ -71,6 +74,14 @@ async function findBlockingOverlap(
   newServiceType
 ) {
   const filter = buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType);
+  const normalizedStart = normalizeToMinute(startTime);
+  const normalizedEnd = normalizeToMinute(endTime);
+  console.log("UTC CHECK:", {
+    startTime: normalizedStart,
+    endTime: normalizedEnd,
+    isoStart: normalizedStart.toISOString(),
+    isoEnd: normalizedEnd.toISOString(),
+  });
   const q = Appointment.findOne(filter).select("_id startTime endTime status serviceType groomerId");
   if (session) q.session(session);
   const existing = await q.lean();
@@ -80,9 +91,9 @@ async function findBlockingOverlap(
       "UPDATE TARGET:",
       String(excludeAppointmentId),
       "startTime:",
-      new Date(startTime).toISOString(),
+      normalizedStart.toISOString(),
       "endTime:",
-      new Date(endTime).toISOString(),
+      normalizedEnd.toISOString(),
       "groomerId:",
       String(groomerId),
       "serviceType:",

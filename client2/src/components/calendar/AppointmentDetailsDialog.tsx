@@ -15,6 +15,7 @@ import appointmentService from '../../services/appointmentService';
 import { petService } from '../../services/petService';
 import { toast } from 'sonner';
 import LoadingSpinner from '../ui/loading-spinner';
+import { toLocalDate, toLocalClock } from '../../utils/time';
 
 // extended interfaces for additional properties that may exist
 interface ExtendedUser extends User {
@@ -49,9 +50,8 @@ const AppointmentDetailsDialog = ({
   onStaffReschedule,
   onStaffCancelled,
 }: AppointmentDetailsDialogProps) => {
-  const { t, i18n } = useTranslation('booking');
+  const { t } = useTranslation('booking');
   const { t: tc } = useTranslation('common');
-  const locale = i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US';
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [petImageBroken, setPetImageBroken] = useState(false);
@@ -81,19 +81,9 @@ const AppointmentDetailsDialog = ({
     : null;
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString(locale, {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      time: date.toLocaleTimeString(locale, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      })
+      date: toLocalDate(dateString),
+      time: toLocalClock(dateString),
     };
   };
 
