@@ -228,7 +228,10 @@ AppointmentSchema.statics.checkForConflicts = async function (
 
   // exclude the current appointment if updating
   if (excludeAppointmentId) {
-    query._id = { $ne: excludeAppointmentId };
+    const normalizedExcludeId = mongoose.isValidObjectId(excludeAppointmentId)
+      ? new mongoose.Types.ObjectId(excludeAppointmentId)
+      : excludeAppointmentId;
+    query._id = { $ne: normalizedExcludeId };
   }
   // executes query to get all appts that satisfy the conditions
   const conflictingAppointments = await this.find(query);

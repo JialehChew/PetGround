@@ -666,7 +666,7 @@ exports.updateAppointment = async (req, res) => {
     appointment.status = "confirmed";
 
     try {
-      await saveAppointmentUpdateWithSlotGuard(appointment, appointmentId);
+      await saveAppointmentUpdateWithSlotGuard(appointment, appointment._id);
     } catch (err) {
       if (err?.isSlotConflict) return respondSlotConflict(res);
       if (isDuplicateKeyError(err)) return respondSlotConflict(res);

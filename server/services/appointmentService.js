@@ -37,7 +37,10 @@ function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId,
     endTime: { $gt: startTime },
   };
   if (excludeAppointmentId) {
-    q._id = { $ne: excludeAppointmentId };
+    const normalizedExcludeId = mongoose.isValidObjectId(excludeAppointmentId)
+      ? new mongoose.Types.ObjectId(excludeAppointmentId)
+      : excludeAppointmentId;
+    q._id = { $ne: normalizedExcludeId };
   }
   if (newServiceType === "boarding") {
     q.serviceType = { $in: ["basic", "full"] };
