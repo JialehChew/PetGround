@@ -373,6 +373,7 @@ AppointmentSchema.statics.getAvailableTimeSlots = async function (groomerId, dat
 
   // mark slots as unavailable if they conflict with existing appointments
   for (const appointment of appointments) {
+    if (!["basic", "full"].includes(appointment.serviceType)) continue;
     const appointmentStart = new Date(appointment.startTime);
     const appointmentEnd = new Date(appointment.endTime);
 
