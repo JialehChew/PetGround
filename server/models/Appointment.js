@@ -94,11 +94,13 @@ AppointmentSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      status: { $ne: "cancelled" },
+      status: { $nin: ["cancelled", "completed"] },
       serviceType: { $in: ["basic", "full"] },
     },
   }
 );
+// Optional overlap-support index for conflict scans
+AppointmentSchema.index({ groomerId: 1, startTime: 1, endTime: 1 });
 
 // biz hours config
 const BUSINESS_HOURS = {
@@ -197,8 +199,8 @@ AppointmentSchema.statics.checkForConflicts = async function (
 ) {
   const query = {
     groomerId,
-    // only cancelled appointments free the slot (completed / no_show / in_progress still occupy until cancelled)
-    status: { $ne: "cancelled" },
+    // cancelled/completed appointments do not block new bookings
+    status: { $nin: ["cancelled", "completed"] },
     startTime: { $lt: endTime },
     endTime: { $gt: startTime },
   };
@@ -305,7 +307,7 @@ AppointmentSchema.pre("save", function (next) {
 });
 
 // added these static methods to simplify availability checks, controller will be a lot cleaner
-// appointments that still occupy slots (only cancelled frees the calendar; name kept for callers)
+// appointments that still occupy slots (cancelled/completed are excluded)
 AppointmentSchema.statics.getGroomerConfirmedAppointments = async function (groomerId, date) {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -317,7 +319,7 @@ AppointmentSchema.statics.getGroomerConfirmedAppointments = async function (groo
 
   return await this.find({
     groomerId,
-    status: { $ne: "cancelled" },
+    status: { $nin: ["cancelled", "completed"] },
     $or: [
       { appointmentDateKey: dayKey },
       {

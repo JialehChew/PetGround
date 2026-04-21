@@ -23,7 +23,8 @@ function groomerDayLockId(groomerId, startTime) {
 }
 
 /**
- * Time overlap with non-cancelled appointments.
+ * Time overlap with active appointments only.
+ * Excluded from blocking: cancelled, completed.
  * Boarding vs boarding: allowed (multiple pets same night / same groomer).
  * Boarding vs grooming (basic/full): still conflicts when intervals overlap.
  * Grooming vs anything: conflicts when intervals overlap.
@@ -31,7 +32,7 @@ function groomerDayLockId(groomerId, startTime) {
 function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType) {
   const q = {
     groomerId,
-    status: { $ne: "cancelled" },
+    status: { $nin: ["cancelled", "completed"] },
     startTime: { $lt: endTime },
     endTime: { $gt: startTime },
   };
