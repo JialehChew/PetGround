@@ -10,6 +10,24 @@ const { deriveAppointmentDateKey } = require("../utils/slotKeys");
 /** HTTP 409 body for i18n (frontend maps code → locale string). */
 const SLOT_CONFLICT_MESSAGE = "该时间段已被预约";
 const SLOT_CONFLICT_CODE = "SLOT_CONFLICT";
+const CONFLICT_GROUPS = {
+  grooming: ["basic", "full"],
+  boarding: ["boarding"],
+};
+
+function getConflictTypes(currentServiceType) {
+  if (!currentServiceType) {
+    return [...CONFLICT_GROUPS.grooming, ...CONFLICT_GROUPS.boarding];
+  }
+  if (CONFLICT_GROUPS.grooming.includes(currentServiceType)) {
+    return CONFLICT_GROUPS.grooming;
+  }
+  if (CONFLICT_GROUPS.boarding.includes(currentServiceType)) {
+    return CONFLICT_GROUPS.boarding;
+  }
+  // fallback: unknown service types only conflict with same type
+  return [currentServiceType];
+}
 
 function slotConflictBody() {
   return {
@@ -23,16 +41,15 @@ function groomerDayLockId(groomerId, startTime) {
 }
 
 /**
- * Time overlap with active appointments only.
+ * Time overlap with active appointments in the same service conflict group.
  * Excluded from blocking: cancelled, completed.
- * Boarding vs boarding: allowed (multiple pets same night / same groomer).
- * Boarding vs grooming (basic/full): still conflicts when intervals overlap.
- * Grooming vs anything: conflicts when intervals overlap.
  */
 function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType) {
+  const conflictTypes = getConflictTypes(newServiceType);
   const q = {
     groomerId,
     status: { $nin: ["cancelled", "completed"] },
+    serviceType: { $in: conflictTypes },
     startTime: { $lt: endTime },
     endTime: { $gt: startTime },
   };
@@ -41,9 +58,6 @@ function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId,
       ? new mongoose.Types.ObjectId(excludeAppointmentId)
       : excludeAppointmentId;
     q._id = { $ne: normalizedExcludeId };
-  }
-  if (newServiceType === "boarding") {
-    q.serviceType = { $in: ["basic", "full"] };
   }
   return q;
 }
