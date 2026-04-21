@@ -15,24 +15,6 @@ const BOARDING_CAPACITY = 8;
 const MAX_BOARDING_DAYS = 30;
 const BOARDING_CAPACITY_FULL_CODE = "BOARDING_CAPACITY_FULL";
 const BOARDING_CAPACITY_FULL_MESSAGE = "寄宿容量已满";
-const CONFLICT_GROUPS = {
-  grooming: ["basic", "full"],
-  boarding: ["boarding"],
-};
-
-function getConflictTypes(currentServiceType) {
-  if (!currentServiceType) {
-    return [...CONFLICT_GROUPS.grooming, ...CONFLICT_GROUPS.boarding];
-  }
-  if (CONFLICT_GROUPS.grooming.includes(currentServiceType)) {
-    return CONFLICT_GROUPS.grooming;
-  }
-  if (CONFLICT_GROUPS.boarding.includes(currentServiceType)) {
-    return CONFLICT_GROUPS.boarding;
-  }
-  // fallback: unknown service types only conflict with same type
-  return [currentServiceType];
-}
 
 function slotConflictBody() {
   return {
@@ -173,7 +155,7 @@ function getLockIdsForAppointment(appointmentLike) {
 function buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType) {
   const normalizedStart = normalizeToMinute(startTime);
   const normalizedEnd = normalizeToMinute(endTime);
-  const conflictTypes = getConflictTypes(newServiceType);
+  const conflictTypes = ["basic", "full"];
   const q = {
     groomerId,
     status: { $nin: ["cancelled", "completed"] },
@@ -198,23 +180,13 @@ async function findBlockingOverlap(
   session,
   newServiceType
 ) {
+  if (newServiceType === "boarding") {
+    // Boarding capacity is checked by dedicated daily-capacity flow, not overlap.
+    return null;
+  }
   const filter = buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType);
   const normalizedStart = normalizeToMinute(startTime);
   const normalizedEnd = normalizeToMinute(endTime);
-  if (newServiceType === "boarding") {
-    const available = await isBoardingAvailable({
-      groomerId,
-      checkInDate: normalizedStart,
-      checkOutDate: normalizedEnd,
-      capacity: BOARDING_CAPACITY,
-      excludeAppointmentId,
-      session,
-    });
-    if (!available) {
-      throwBoardingCapacityFull();
-    }
-    return null;
-  }
 
   const q = Appointment.findOne(filter).select("_id startTime endTime status serviceType groomerId");
   if (session) q.session(session);
@@ -291,6 +263,16 @@ async function insertAppointmentWithSlotGuard(appointmentDoc) {
         { upsert: true, session: sess }
       );
     }
+    if (appointmentDoc.serviceType === "boarding") {
+      const available = await isBoardingAvailable({
+        groomerId: appointmentDoc.groomerId,
+        checkInDate: appointmentDoc.startTime,
+        checkOutDate: appointmentDoc.endTime,
+        capacity: BOARDING_CAPACITY,
+        session: sess,
+      });
+      if (!available) throwBoardingCapacityFull();
+    }
     const hit = await findBlockingOverlap(
       appointmentDoc.groomerId,
       appointmentDoc.startTime,
@@ -317,6 +299,15 @@ async function insertAppointmentWithSlotGuard(appointmentDoc) {
     if (isTransactionUnsupportedError(err)) {
       for (const lockId of lockIds) {
         await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      }
+      if (appointmentDoc.serviceType === "boarding") {
+        const available = await isBoardingAvailable({
+          groomerId: appointmentDoc.groomerId,
+          checkInDate: appointmentDoc.startTime,
+          checkOutDate: appointmentDoc.endTime,
+          capacity: BOARDING_CAPACITY,
+        });
+        if (!available) throwBoardingCapacityFull();
       }
       const hit = await findBlockingOverlap(
         appointmentDoc.groomerId,
@@ -353,6 +344,17 @@ async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppoint
         { upsert: true, session: sess }
       );
     }
+    if (appointmentDoc.serviceType === "boarding") {
+      const available = await isBoardingAvailable({
+        groomerId: appointmentDoc.groomerId,
+        checkInDate: appointmentDoc.startTime,
+        checkOutDate: appointmentDoc.endTime,
+        capacity: BOARDING_CAPACITY,
+        excludeAppointmentId,
+        session: sess,
+      });
+      if (!available) throwBoardingCapacityFull();
+    }
     const hit = await findBlockingOverlap(
       appointmentDoc.groomerId,
       appointmentDoc.startTime,
@@ -379,6 +381,16 @@ async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppoint
     if (isTransactionUnsupportedError(err)) {
       for (const lockId of lockIds) {
         await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      }
+      if (appointmentDoc.serviceType === "boarding") {
+        const available = await isBoardingAvailable({
+          groomerId: appointmentDoc.groomerId,
+          checkInDate: appointmentDoc.startTime,
+          checkOutDate: appointmentDoc.endTime,
+          capacity: BOARDING_CAPACITY,
+          excludeAppointmentId,
+        });
+        if (!available) throwBoardingCapacityFull();
       }
       const hit = await findBlockingOverlap(
         appointmentDoc.groomerId,

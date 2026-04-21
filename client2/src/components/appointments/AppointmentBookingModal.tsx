@@ -26,6 +26,7 @@ import {
 } from '../../utils/booking';
 import { BookingTermsAgreementDialog } from './BookingTermsAgreementDialog';
 import { toast } from "sonner"
+import { useAuthStore } from '../../store/authStore';
 
 interface AppointmentBookingModalProps {
   pets: Pet[];
@@ -45,7 +46,8 @@ interface TimeSlot {
 }
 
 type BookingStep = 'selection' | 'summary' | 'confirmation';
-const MAX_BOARDING_DAYS = 14;
+const OWNER_MAX_BOARDING_DAYS = 14;
+const STAFF_MAX_BOARDING_DAYS = 30;
 
 function addDaysToYmd(ymd: string, days: number): string {
   const [y, m, d] = ymd.split('-').map((x) => Number(x));
@@ -73,7 +75,12 @@ const AppointmentBookingModal = ({
 }: AppointmentBookingModalProps) => {
   const { t, i18n } = useTranslation('booking');
   const { t: tc } = useTranslation('common');
+  const { user } = useAuthStore();
   const locale = i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-MY';
+  const maxBoardingDays =
+    user?.role === 'admin' || user?.role === 'groomer'
+      ? STAFF_MAX_BOARDING_DAYS
+      : OWNER_MAX_BOARDING_DAYS;
 
   const [groomers, setGroomers] = useState<User[]>([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
@@ -382,10 +389,10 @@ const AppointmentBookingModal = ({
       formik.setFieldValue('checkOutDate', minCheckout);
       return;
     }
-    if (nightsBetween(checkIn, checkOut) > MAX_BOARDING_DAYS) {
-      formik.setFieldValue('checkOutDate', addDaysToYmd(checkIn, MAX_BOARDING_DAYS));
+    if (nightsBetween(checkIn, checkOut) > maxBoardingDays) {
+      formik.setFieldValue('checkOutDate', addDaysToYmd(checkIn, maxBoardingDays));
     }
-  }, [formik.values.serviceType, formik.values.selectedDate, formik.values.checkOutDate]);
+  }, [formik.values.serviceType, formik.values.selectedDate, formik.values.checkOutDate, maxBoardingDays]);
 
   // helper functions
   const getMinDate = () => getLocalYmdToday();
@@ -515,8 +522,8 @@ const AppointmentBookingModal = ({
         toast.error(t('modal.validation.boardingRange'));
         return;
       }
-      if (nights > MAX_BOARDING_DAYS) {
-        toast.error(t('modal.validation.boardingMax', { max: MAX_BOARDING_DAYS }));
+      if (nights > maxBoardingDays) {
+        toast.error(t('modal.validation.boardingMax', { max: maxBoardingDays }));
         return;
       }
       if (hasAnyFullDayBetween(checkIn, checkOut)) {
@@ -773,7 +780,7 @@ const AppointmentBookingModal = ({
                               formik.setFieldValue('selectedDate', value);
                               const defaultCheckout = addOneCalendarDayYmd(value);
                               const currentCheckout = formatDateYmdInput(formik.values.checkOutDate);
-                              const maxCheckout = addDaysToYmd(value, MAX_BOARDING_DAYS);
+                              const maxCheckout = addDaysToYmd(value, maxBoardingDays);
                               if (
                                 !currentCheckout ||
                                 currentCheckout <= value ||
@@ -803,7 +810,7 @@ const AppointmentBookingModal = ({
                               const ymd = formatDateYmdInput(date);
                               if (!checkIn || !ymd) return true;
                               if (ymd <= checkIn) return true;
-                              if (nightsBetween(checkIn, ymd) > MAX_BOARDING_DAYS) return true;
+                              if (nightsBetween(checkIn, ymd) > maxBoardingDays) return true;
                               if (hasAnyFullDayBetween(checkIn, ymd)) return true;
                               return false;
                             }}
@@ -814,7 +821,7 @@ const AppointmentBookingModal = ({
                             minDate={addOneCalendarDayYmd(formatDateYmdInput(formik.values.selectedDate || getMinDate()))}
                             maxDate={addDaysToYmd(
                               formatDateYmdInput(formik.values.selectedDate || getMinDate()),
-                              MAX_BOARDING_DAYS
+                              maxBoardingDays
                             )}
                             error={!!(formik.touched.checkOutDate && formik.errors.checkOutDate)}
                           />
@@ -829,7 +836,7 @@ const AppointmentBookingModal = ({
                           <p>{t('modal.checkOutSummary', { date: checkoutYmd })}</p>
                           <p className="font-semibold">{t('modal.nightsSummary', { nights: boardingNights })}</p>
                           <p className="mt-2 text-xs text-amber-900/85">
-                            {t('modal.boardingMaxHint', { max: MAX_BOARDING_DAYS })}
+                            {t('modal.boardingMaxHint', { max: maxBoardingDays })}
                           </p>
                         </div>
                       )}

@@ -18,6 +18,7 @@ import {
 } from "../services/adminService";
 import { petService } from "../services/petService";
 import { toast } from "sonner";
+import { useAuthStore } from "../store/authStore";
 
 export default function AdminClientDetailPage() {
   const { userId = "" } = useParams();
@@ -25,6 +26,8 @@ export default function AdminClientDetailPage() {
   const { t, i18n } = useTranslation("admin");
   const { t: tb } = useTranslation("booking");
   const locale = i18n.language?.startsWith("zh") ? "zh-CN" : "en-US";
+  const { user } = useAuthStore();
+  const maxDays = user?.role === "admin" || user?.role === "groomer" ? 30 : 14;
 
   const [loading, setLoading] = useState(false);
   const [client, setClient] = useState<AdminUserListItem | null>(null);
@@ -105,6 +108,15 @@ export default function AdminClientDetailPage() {
     return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
   };
 
+  const addDaysToYmd = (ymd: string, days: number) => {
+    const [y, m, d] = ymd.split("-").map((x) => Number(x));
+    if ([y, m, d].some((n) => Number.isNaN(n))) return "";
+    const dt = new Date(Date.UTC(y, m - 1, d + days));
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      dt.getUTCDate()
+    ).padStart(2, "0")}`;
+  };
+
   const openBoardingEditor = (appointment: Appointment) => {
     const checkIn = appointment.checkInDate ? toUtcYmd(appointment.checkInDate) : toUtcYmd(appointment.startTime);
     const checkOut = appointment.checkOutDate ? toUtcYmd(appointment.checkOutDate) : toUtcYmd(appointment.endTime);
@@ -129,6 +141,11 @@ export default function AdminClientDetailPage() {
     }
     if (boardingCheckOut <= boardingCheckIn) {
       toast.warning("离开日期必须晚于入住日期");
+      return;
+    }
+    const newDays = calcDays(boardingCheckIn, boardingCheckOut);
+    if (newDays > maxDays) {
+      toast.warning(`最多可预订 ${maxDays} 天`);
       return;
     }
     try {
@@ -525,11 +542,16 @@ export default function AdminClientDetailPage() {
                       type="date"
                       value={boardingCheckOut}
                       onChange={(e) => setBoardingCheckOut(e.target.value)}
+                      min={boardingCheckIn ? addDaysToYmd(boardingCheckIn, 1) : undefined}
+                      max={boardingCheckIn ? addDaysToYmd(boardingCheckIn, maxDays) : undefined}
                       className="rounded-2xl border-amber-200 bg-white/90"
                     />
                   </div>
                   <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-2 text-xs text-amber-900">
                     新住宿天数：{calcDays(boardingCheckIn, boardingCheckOut)} 天
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-white p-2 text-xs text-amber-900/80">
+                    最多可预订 {maxDays} 天
                   </div>
                 </div>
                 <div className="mt-5 flex justify-end gap-2">

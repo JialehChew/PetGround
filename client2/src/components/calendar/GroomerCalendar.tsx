@@ -62,6 +62,7 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
   const [isTimeBlockDialogOpen, setIsTimeBlockDialogOpen] = useState(false);
   const [isTimeBlockDetailsDialogOpen, setIsTimeBlockDetailsDialogOpen] = useState(false);
   const [selectedTimeBlock, setSelectedTimeBlock] = useState<TimeBlock | null>(null);
+  const [currentViewType, setCurrentViewType] = useState<string>('timeGridWeek');
   const [selectedDateInfo, setSelectedDateInfo] = useState<{
     date: Date | null;
     startTime: Date | null;
@@ -79,11 +80,11 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
   }, [occupancy]);
 
   const handleDayCellContent = (arg: DayCellContentArg) => {
-    const ymd = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
+    const dateStr = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
       2,
       '0'
     )}-${String(arg.date.getUTCDate()).padStart(2, '0')}`;
-    const item = occupancyMap.get(ymd);
+    const item = occupancyMap.get(dateStr);
     if (!item) {
       return (
         <div>
@@ -99,6 +100,7 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
       <div>
         <div>{arg.dayNumberText}</div>
         <span
+          key={`occupancy-${dateStr}`}
           title={tooltip}
           className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold ${color} ${bgColor}`}
         >
@@ -110,11 +112,11 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
   };
 
   const handleDayHeaderContent = (arg: DayHeaderContentArg) => {
-    const ymd = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
+    const dateStr = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
       2,
       '0'
     )}-${String(arg.date.getUTCDate()).padStart(2, '0')}`;
-    const item = occupancyMap.get(ymd);
+    const item = occupancyMap.get(dateStr);
     const color = item ? getOccupancyColor(item.occupied, item.capacity) : "text-gray-400";
     const bgColor = item ? getOccupancyBgColor(item.occupied, item.capacity) : "bg-gray-100";
     const indicator = item ? getOccupancyIndicator(item.occupied, item.capacity) : "⚪";
@@ -124,6 +126,7 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
       <div className="flex flex-col items-center leading-tight">
         <span>{arg.text}</span>
         <span
+          key={`occupancy-${dateStr}`}
           title={tooltip}
           className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold ${color} ${bgColor}`}
         >
@@ -252,6 +255,7 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
 
   // handle date range changes (when user navigates calendar)
   const handleDatesSet = (arg: DatesSetArg) => {
+    setCurrentViewType(arg.view.type);
     onDatesSet(arg.start, arg.end);
   };
 
@@ -349,8 +353,12 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
             }
           ]}
           loading={(isLoading) => loading || isLoading}
-          dayCellContent={handleDayCellContent}
-          dayHeaderContent={handleDayHeaderContent}
+          dayCellContent={currentViewType === 'dayGridMonth' ? handleDayCellContent : undefined}
+          dayHeaderContent={
+            currentViewType === 'timeGridWeek' || currentViewType === 'timeGridDay'
+              ? handleDayHeaderContent
+              : undefined
+          }
         />
       </div>
 

@@ -201,6 +201,8 @@ AppointmentSchema.statics.checkForConflicts = async function (
     groomerId,
     // cancelled/completed appointments do not block new bookings
     status: { $nin: ["cancelled", "completed"] },
+    // Time-block conflict checks should only consider grooming services.
+    serviceType: { $in: ["basic", "full"] },
     startTime: { $lt: endTime },
     endTime: { $gt: startTime },
   };
