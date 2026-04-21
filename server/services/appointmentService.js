@@ -57,9 +57,38 @@ async function findBlockingOverlap(
   newServiceType
 ) {
   const filter = buildOverlapFilter(groomerId, startTime, endTime, excludeAppointmentId, newServiceType);
-  const q = Appointment.findOne(filter);
+  const q = Appointment.findOne(filter).select("_id startTime endTime status serviceType groomerId");
   if (session) q.session(session);
-  return q.lean();
+  const existing = await q.lean();
+
+  if (excludeAppointmentId) {
+    console.log(
+      "UPDATE TARGET:",
+      String(excludeAppointmentId),
+      "startTime:",
+      new Date(startTime).toISOString(),
+      "endTime:",
+      new Date(endTime).toISOString(),
+      "groomerId:",
+      String(groomerId),
+      "serviceType:",
+      newServiceType
+    );
+    if (existing) {
+      console.log("CONFLICT FOUND:", {
+        _id: existing._id,
+        startTime: existing.startTime,
+        endTime: existing.endTime,
+        status: existing.status,
+        serviceType: existing.serviceType,
+        groomerId: existing.groomerId,
+      });
+    } else {
+      console.log("CONFLICT FOUND:", null);
+    }
+  }
+
+  return existing;
 }
 
 function throwSlotConflict() {
