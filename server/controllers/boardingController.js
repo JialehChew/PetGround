@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const { Appointment } = require("../models/Appointment");
 const { BOARDING_CAPACITY, countBoardingOccupancyForDay } = require("../services/appointmentService");
 const { ensureUTCDate, normalizeToUtcDayStart, parseYmdToUtcDayRange } = require("../utils/date");
 
@@ -31,23 +32,26 @@ exports.getOccupancy = async (req, res) => {
       return res.status(400).json({ error: "startDate and endDate are required" });
     }
 
-    let groomerTargetId = groomerId || req.user?.id;
-    if (!groomerTargetId || groomerTargetId === "all") {
-      return res.status(400).json({ error: "groomerId is required for occupancy query" });
-    }
-
-    const isSelf = String(groomerTargetId) === String(req.user?.id);
+    let groomerTargetId = null;
+    const isOwner = req.user?.role === "owner";
     const isAdmin = req.user?.role === "admin";
-    if (!isAdmin && !isSelf) {
-      return res.status(403).json({ error: "Not authorized to view this groomer's occupancy" });
-    }
-
-    if (!mongoose.isValidObjectId(groomerTargetId)) {
-      return res.status(400).json({ error: "Invalid groomerId" });
-    }
-    const groomer = await User.findOne({ _id: groomerTargetId, role: "groomer" }).select("_id").lean();
-    if (!groomer) {
-      return res.status(404).json({ error: "Groomer not found" });
+    if (groomerId && groomerId !== "all") {
+      groomerTargetId = groomerId;
+      const isSelf = String(groomerTargetId) === String(req.user?.id);
+      if (!isAdmin && !isSelf) {
+        return res.status(403).json({ error: "Not authorized to view this groomer's occupancy" });
+      }
+      if (!mongoose.isValidObjectId(groomerTargetId)) {
+        return res.status(400).json({ error: "Invalid groomerId" });
+      }
+      const groomer = await User.findOne({ _id: groomerTargetId, role: "groomer" }).select("_id").lean();
+      if (!groomer) {
+        return res.status(404).json({ error: "Groomer not found" });
+      }
+      groomerTargetId = groomer._id;
+    } else if (!isOwner && !isAdmin) {
+      // groomer without explicit query falls back to self
+      groomerTargetId = req.user?.id;
     }
 
     const startDay = parseDateToUtcDayStart(startDate);
@@ -57,15 +61,51 @@ exports.getOccupancy = async (req, res) => {
     }
 
     const data = [];
+    const groomerCount = groomerTargetId
+      ? 1
+      : await User.countDocuments({
+          role: "groomer",
+        });
+    const aggregateCapacity = Math.max(0, groomerCount) * BOARDING_CAPACITY;
     for (let d = new Date(startDay); d <= endDay; d = addUtcDays(d, 1)) {
-      const occupied = await countBoardingOccupancyForDay({
-        groomerId: groomer._id,
-        dayStart: d,
-      });
+      let occupied = 0;
+      if (groomerTargetId) {
+        occupied = await countBoardingOccupancyForDay({
+          groomerId: groomerTargetId,
+          dayStart: d,
+        });
+      } else {
+        const dayStart = normalizeToUtcDayStart(d);
+        const dayEnd = addUtcDays(dayStart, 1);
+        occupied = await Appointment.countDocuments({
+          serviceType: "boarding",
+          status: { $nin: ["cancelled", "completed"] },
+          $or: [
+            {
+              checkInDate: { $lt: dayEnd },
+              checkOutDate: { $gt: dayStart },
+            },
+            {
+              $and: [
+                {
+                  $or: [{ checkInDate: { $exists: false } }, { checkInDate: null }],
+                },
+                {
+                  $or: [{ checkOutDate: { $exists: false } }, { checkOutDate: null }],
+                },
+                { startTime: { $lt: dayEnd } },
+                { endTime: { $gt: dayStart } },
+              ],
+            },
+          ],
+        });
+      }
+      const capacity = groomerTargetId ? BOARDING_CAPACITY : aggregateCapacity;
       data.push({
         date: toYmd(d),
         occupied,
-        capacity: BOARDING_CAPACITY,
+        capacity,
+        isFull: capacity > 0 ? occupied >= capacity : true,
       });
     }
 

@@ -123,15 +123,17 @@ const getGroomerSchedule = async (
 };
 
 const getBoardingOccupancy = async (
-  groomerId: string,
+  groomerId: string | undefined,
   startDate: string,
   endDate: string
 ): Promise<BoardingOccupancy[]> => {
   try {
     const startIso = toUtcIsoMinute(startDate);
     const endIso = toUtcIsoMinute(endDate);
+    const params: Record<string, string> = { startDate: startIso, endDate: endIso };
+    if (groomerId) params.groomerId = groomerId;
     const response = await api.get('/boarding/occupancy', {
-      params: { groomerId, startDate: startIso, endDate: endIso },
+      params,
     });
     return response.data;
   } catch (error: unknown) {

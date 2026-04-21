@@ -15,12 +15,15 @@ const {
   insertAppointmentWithSlotGuard,
   insertAppointmentWithAutoAssignedGroomer,
   saveAppointmentUpdateWithSlotGuard,
+  saveBoardingDateUpdateWithCapacityGuard,
   slotConflictBody,
   boardingCapacityBody,
   BOARDING_CAPACITY_FULL_CODE,
   isDuplicateKeyError,
 } = require("../services/appointmentService");
 const { ensureUTCMinuteDate, normalizeToMinute, normalizeToUtcDayStart } = require("../utils/date");
+const OWNER_MAX_BOARDING_DAYS = 14;
+const STAFF_MAX_BOARDING_DAYS = 30;
 
 function respondSlotConflict(res) {
   const body = slotConflictBody();
@@ -39,7 +42,14 @@ function assertPetSize(pet, message = "请先为宠物设置体型后再预约")
   return null;
 }
 
-function parseBoardingDateRange(checkInInput, checkOutInput) {
+function getMaxBoardingDaysByRole(role) {
+  if (role === "admin" || role === "groomer") {
+    return STAFF_MAX_BOARDING_DAYS;
+  }
+  return OWNER_MAX_BOARDING_DAYS;
+}
+
+function parseBoardingDateRange(checkInInput, checkOutInput, role) {
   const checkIn = normalizeToUtcDayStart(checkInInput);
   const checkOut = checkOutInput
     ? normalizeToUtcDayStart(checkOutInput)
@@ -47,7 +57,16 @@ function parseBoardingDateRange(checkInInput, checkOutInput) {
   if (checkOut <= checkIn) {
     throw new Error("退房日期必须晚于入住日期");
   }
+  const totalDays = diffDays(checkIn, checkOut);
+  const maxDays = getMaxBoardingDaysByRole(role);
+  if (totalDays > maxDays) {
+    throw new Error("Maximum booking days exceeded");
+  }
   return { checkIn, checkOut };
+}
+
+function diffDays(checkInDate, checkOutDate) {
+  return Math.round((checkOutDate.getTime() - checkInDate.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 /** Map Mongoose / runtime errors to HTTP status + message for API clients */
@@ -104,7 +123,7 @@ exports.createAppointment = async (req, res) => {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
       try {
-        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        const range = parseBoardingDateRange(checkInDate, checkOutDate, req.user.role);
         checkInMid = range.checkIn;
         checkOutMid = range.checkOut;
       } catch (e) {
@@ -331,7 +350,7 @@ exports.createAppointmentAsGroomer = async (req, res) => {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
       try {
-        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        const range = parseBoardingDateRange(checkInDate, checkOutDate, req.user.role);
         checkInMid = range.checkIn;
         checkOutMid = range.checkOut;
       } catch (e) {
@@ -656,7 +675,7 @@ exports.updateAppointment = async (req, res) => {
         return res.status(400).json({ error: "住宿预约需提供入住日期" });
       }
       try {
-        const range = parseBoardingDateRange(checkInDate, checkOutDate);
+        const range = parseBoardingDateRange(checkInDate, checkOutDate, req.user.role);
         checkInMid = range.checkIn;
         checkOutMid = range.checkOut;
       } catch (e) {
@@ -777,6 +796,76 @@ exports.updateAppointment = async (req, res) => {
   } catch (error) {
     console.error("Error updating appointment:", error);
     res.status(500).json({ error: "Server error updating appointment" });
+  }
+};
+
+/**
+ * Admin/Groomer only: update boarding date range (check-in / check-out days).
+ * Allows future and in-progress boarding appointments.
+ */
+exports.updateBoardingDates = async (req, res) => {
+  try {
+    if (req.user.role !== "admin" && req.user.role !== "groomer") {
+      return res.status(403).json({ error: "Only admin or groomer can modify boarding dates" });
+    }
+
+    const appointmentId = req.params.id;
+    const { checkInDate, checkOutDate } = req.body || {};
+    if (!checkInDate || !checkOutDate) {
+      return res.status(400).json({ error: "checkInDate and checkOutDate are required" });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+    if (appointment.serviceType !== "boarding") {
+      return res.status(400).json({ error: "Only boarding appointment supports date-range update" });
+    }
+    if (!["confirmed", "in_progress"].includes(appointment.status)) {
+      return res.status(400).json({ error: "Only confirmed or in-progress boarding can be updated" });
+    }
+    if (req.user.role === "groomer" && appointment.groomerId.toString() !== req.user.id) {
+      return res.status(403).json({ error: "Not authorized to modify this boarding appointment" });
+    }
+
+    let range;
+    try {
+      range = parseBoardingDateRange(checkInDate, checkOutDate, req.user.role);
+    } catch (e) {
+      return res.status(400).json({ error: e.message || "Invalid boarding date range" });
+    }
+
+    appointment.checkInDate = range.checkIn;
+    appointment.checkOutDate = range.checkOut;
+    appointment.startTime = range.checkIn;
+    appointment.endTime = range.checkOut;
+    appointment.duration = Math.max(
+      30,
+      Math.round((range.checkOut.getTime() - range.checkIn.getTime()) / (1000 * 60))
+    );
+    appointment.updatedAt = new Date();
+
+    try {
+      await saveBoardingDateUpdateWithCapacityGuard(appointment, appointment._id);
+    } catch (err) {
+      if (err?.code === BOARDING_CAPACITY_FULL_CODE) return respondBoardingCapacityFull(res);
+      throw err;
+    }
+
+    const updated = await Appointment.findById(appointment._id)
+      .populate("petId", "name species breed age notes size imageUrl notesForGroomer")
+      .populate("ownerId", "name email phone")
+      .populate("groomerId", "name email");
+
+    return res.status(200).json({
+      message: "Boarding dates updated successfully",
+      appointment: updated,
+    });
+  } catch (error) {
+    console.error("Error updating boarding dates:", error);
+    const { statusCode, details } = formatSaveError(error);
+    return res.status(statusCode).json({ error: "Failed to update boarding dates", details });
   }
 };
 

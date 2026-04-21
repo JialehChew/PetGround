@@ -28,6 +28,8 @@ router.get(
 
 // get a specific appt by id
 router.get("/:id", isAuthenticated, appointmentController.getAppointmentById);
+// admin/groomer: update boarding date range
+router.put("/:id/boarding-dates", isAuthenticated, appointmentController.updateBoardingDates);
 // reschedule / update (owner of appointment or assigned groomer)
 router.put("/:id", isAuthenticated, appointmentController.updateAppointment);
 // cancel (soft) — owner or assigned groomer

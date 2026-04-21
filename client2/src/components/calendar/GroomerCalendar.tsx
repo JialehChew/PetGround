@@ -4,7 +4,13 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { EventClickArg, DatesSetArg, DateSelectArg, DayCellContentArg } from '@fullcalendar/core';
+import type {
+  EventClickArg,
+  DatesSetArg,
+  DateSelectArg,
+  DayCellContentArg,
+  DayHeaderContentArg,
+} from '@fullcalendar/core';
 import { type GroomerSchedule, type TimeBlock, type BoardingOccupancy } from '../../services/groomerService';
 import type { Appointment } from '../../types';
 import AppointmentDetailsDialog from './AppointmentDetailsDialog';
@@ -73,9 +79,10 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
   }, [occupancy]);
 
   const handleDayCellContent = (arg: DayCellContentArg) => {
-    const ymd = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(2, '0')}-${String(
-      arg.date.getUTCDate()
-    ).padStart(2, '0')}`;
+    const ymd = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
+      2,
+      '0'
+    )}-${String(arg.date.getUTCDate()).padStart(2, '0')}`;
     const item = occupancyMap.get(ymd);
     if (!item) {
       return (
@@ -84,11 +91,27 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
         </div>
       );
     }
-    const colorClass = getOccupancyColor(item.occupied, item.capacity);
+    const color = getOccupancyColor(item.occupied, item.capacity);
     return (
       <div>
         <div>{arg.dayNumberText}</div>
-        <div className={`text-xs font-semibold ${colorClass}`}>{`${item.occupied} / ${item.capacity}`}</div>
+        <span className={`text-xs font-semibold ${color}`}>{`${item.occupied} / ${item.capacity}`}</span>
+      </div>
+    );
+  };
+
+  const handleDayHeaderContent = (arg: DayHeaderContentArg) => {
+    const ymd = `${arg.date.getUTCFullYear()}-${String(arg.date.getUTCMonth() + 1).padStart(
+      2,
+      '0'
+    )}-${String(arg.date.getUTCDate()).padStart(2, '0')}`;
+    const item = occupancyMap.get(ymd);
+    const color = item ? getOccupancyColor(item.occupied, item.capacity) : "text-gray-400";
+    const occupancyText = item ? `${item.occupied} / ${item.capacity}` : "- / -";
+    return (
+      <div className="flex flex-col items-center leading-tight">
+        <span>{arg.text}</span>
+        <span className={`text-xs font-semibold ${color}`}>{occupancyText}</span>
       </div>
     );
   };
@@ -309,6 +332,7 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
           ]}
           loading={(isLoading) => loading || isLoading}
           dayCellContent={handleDayCellContent}
+          dayHeaderContent={handleDayHeaderContent}
         />
       </div>
 

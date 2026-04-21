@@ -45,6 +45,22 @@ interface TimeSlot {
 }
 
 type BookingStep = 'selection' | 'summary' | 'confirmation';
+const MAX_BOARDING_DAYS = 14;
+
+function addDaysToYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map((x) => Number(x));
+  if ([y, m, d].some((n) => Number.isNaN(n))) return '';
+  const dt = new Date(y, m - 1, d + days);
+  return formatDateYmdInput(dt);
+}
+
+function nightsBetween(checkIn: string, checkOut: string): number {
+  if (!checkIn || !checkOut) return 0;
+  const start = new Date(`${checkIn}T00:00:00`);
+  const end = new Date(`${checkOut}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+}
 
 const AppointmentBookingModal = ({
   pets,
@@ -68,6 +84,10 @@ const AppointmentBookingModal = ({
   const [editedInstructions, setEditedInstructions] = useState('');
   const [saveInstructionsLoading, setSaveInstructionsLoading] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [boardingOccupancy, setBoardingOccupancy] = useState<Record<string, { occupied: number; capacity: number }>>(
+    {}
+  );
+  const [loadingBoardingOccupancy, setLoadingBoardingOccupancy] = useState(false);
 
   const isEditing = !!editingAppointment;
 
@@ -82,6 +102,13 @@ const AppointmentBookingModal = ({
         selectedDate: Yup.string()
           .matches(/^\d{4}-\d{2}-\d{2}$/, t('modal.validation.date'))
           .required(t('modal.validation.date')),
+        checkOutDate: Yup.string().when('serviceType', ([st], schema) =>
+          st === 'boarding'
+            ? schema
+                .matches(/^\d{4}-\d{2}-\d{2}$/, t('modal.validation.date'))
+                .required(t('modal.validation.date'))
+            : schema.optional()
+        ),
         selectedTimeSlot: Yup.string().when('serviceType', ([st], schema) =>
           st === 'boarding' ? schema.optional() : schema.required(t('modal.validation.slot'))
         ),
@@ -109,6 +136,16 @@ const AppointmentBookingModal = ({
           ? formatDateYmdInput(editingAppointment.checkInDate)
           : formatDateYmdInput(editingAppointment.startTime)
         : '',
+      checkOutDate: editingAppointment
+        ? editingAppointment.serviceType === 'boarding'
+          ? formatDateYmdInput(
+              editingAppointment.checkOutDate ||
+                addOneCalendarDayYmd(
+                  formatDateYmdInput(editingAppointment.checkInDate || editingAppointment.startTime)
+                )
+            )
+          : ''
+        : '',
       selectedTimeSlot:
         editingAppointment?.serviceType === 'boarding' ? '' : editingAppointment?.startTime || '',
       specialInstructions: editingAppointment && typeof editingAppointment.petId === 'object' && editingAppointment.petId !== null ? 
@@ -131,6 +168,7 @@ const AppointmentBookingModal = ({
 
         if (values.serviceType === 'boarding') {
           appointmentData.checkInDate = formatDateYmdInput(values.selectedDate);
+          appointmentData.checkOutDate = formatDateYmdInput(values.checkOutDate);
         } else {
           appointmentData.startTime = values.selectedTimeSlot;
         }
@@ -296,6 +334,33 @@ const AppointmentBookingModal = ({
     lockGroomerId,
   ]);
 
+  // preload boarding occupancy for date-range validation / disabled dates
+  useEffect(() => {
+    const loadBoardingOccupancy = async () => {
+      if (formik.values.serviceType !== 'boarding') {
+        setBoardingOccupancy({});
+        setLoadingBoardingOccupancy(false);
+        return;
+      }
+      try {
+        setLoadingBoardingOccupancy(true);
+        const groomerForCheck = (isEditing || lockGroomerId) && formik.values.groomerId ? formik.values.groomerId : undefined;
+        const rows = await groomerService.getBoardingOccupancy(groomerForCheck, getMinDate(), getMaxDate());
+        const map: Record<string, { occupied: number; capacity: number }> = {};
+        rows.forEach((r) => {
+          map[r.date] = { occupied: r.occupied, capacity: r.capacity };
+        });
+        setBoardingOccupancy(map);
+      } catch (error) {
+        console.error('Error loading boarding occupancy:', error);
+        setBoardingOccupancy({});
+      } finally {
+        setLoadingBoardingOccupancy(false);
+      }
+    };
+    void loadBoardingOccupancy();
+  }, [formik.values.serviceType, formik.values.groomerId, isEditing, lockGroomerId]);
+
   // update special instructions
   useEffect(() => {
     if (formik.values.petId && !isEditing) {
@@ -306,6 +371,21 @@ const AppointmentBookingModal = ({
       }
     }
   }, [formik.values.petId, pets, isEditing]);
+
+  useEffect(() => {
+    if (formik.values.serviceType !== 'boarding') return;
+    const checkIn = formatDateYmdInput(formik.values.selectedDate);
+    if (!checkIn) return;
+    const checkOut = formatDateYmdInput(formik.values.checkOutDate);
+    const minCheckout = addOneCalendarDayYmd(checkIn);
+    if (!checkOut || checkOut <= checkIn) {
+      formik.setFieldValue('checkOutDate', minCheckout);
+      return;
+    }
+    if (nightsBetween(checkIn, checkOut) > MAX_BOARDING_DAYS) {
+      formik.setFieldValue('checkOutDate', addDaysToYmd(checkIn, MAX_BOARDING_DAYS));
+    }
+  }, [formik.values.serviceType, formik.values.selectedDate, formik.values.checkOutDate]);
 
   // helper functions
   const getMinDate = () => getLocalYmdToday();
@@ -371,6 +451,21 @@ const AppointmentBookingModal = ({
     });
   };
 
+  const isFullOccupancyDay = (ymd: string): boolean => {
+    const row = boardingOccupancy[ymd];
+    if (!row || row.capacity <= 0) return false;
+    return row.occupied >= row.capacity;
+  };
+
+  const hasAnyFullDayBetween = (checkIn: string, checkOut: string): boolean => {
+    if (!checkIn || !checkOut) return false;
+    for (let d = checkIn; d < checkOut; d = addDaysToYmd(d, 1)) {
+      if (!d) break;
+      if (isFullOccupancyDay(d)) return true;
+    }
+    return false;
+  };
+
   const getServiceDetails = (svc: string) => {
     if (svc === 'boarding') {
       return {
@@ -398,6 +493,7 @@ const AppointmentBookingModal = ({
         petId: true,
         serviceType: true,
         selectedDate: true,
+        checkOutDate: true,
         selectedTimeSlot: true,
       });
       return;
@@ -410,6 +506,23 @@ const AppointmentBookingModal = ({
     if (formik.values.serviceType !== 'boarding' && !formik.values.selectedTimeSlot) {
       toast.error(t('modal.validation.slot'));
       return;
+    }
+    if (formik.values.serviceType === 'boarding') {
+      const checkIn = formatDateYmdInput(formik.values.selectedDate);
+      const checkOut = formatDateYmdInput(formik.values.checkOutDate);
+      const nights = nightsBetween(checkIn, checkOut);
+      if (!checkIn || !checkOut || nights <= 0) {
+        toast.error(t('modal.validation.boardingRange'));
+        return;
+      }
+      if (nights > MAX_BOARDING_DAYS) {
+        toast.error(t('modal.validation.boardingMax', { max: MAX_BOARDING_DAYS }));
+        return;
+      }
+      if (hasAnyFullDayBetween(checkIn, checkOut)) {
+        toast.error(t('modal.validation.boardingFullRange'));
+        return;
+      }
     }
     setCurrentStep('summary');
   };
@@ -443,10 +556,15 @@ const AppointmentBookingModal = ({
   );
 
   const selectedDateStr = formatDateYmdInput(formik.values.selectedDate);
-  const checkoutYmd =
-    formik.values.serviceType === 'boarding' && selectedDateStr.length >= 10
-      ? addOneCalendarDayYmd(selectedDateStr)
-      : '';
+  const checkoutYmd = formatDateYmdInput(formik.values.checkOutDate);
+  const boardingNights = formik.values.serviceType === 'boarding' ? nightsBetween(selectedDateStr, checkoutYmd) : 0;
+  const fullBoardingDays = useMemo(
+    () =>
+      Object.entries(boardingOccupancy)
+        .filter(([, v]) => v.capacity > 0 && v.occupied >= v.capacity)
+        .map(([k]) => k),
+    [boardingOccupancy]
+  );
 
   return (
     <AnimatePresence>
@@ -598,6 +716,11 @@ const AppointmentBookingModal = ({
                             if (service.type === 'boarding') {
                               formik.setFieldValue('selectedTimeSlot', '');
                               formik.setFieldError('selectedTimeSlot', undefined);
+                              const checkIn = formatDateYmdInput(formik.values.selectedDate) || getLocalYmdToday();
+                              formik.setFieldValue('selectedDate', checkIn);
+                              formik.setFieldValue('checkOutDate', addOneCalendarDayYmd(checkIn));
+                            } else {
+                              formik.setFieldValue('checkOutDate', '');
                             }
                           }}
                           className={`cursor-pointer rounded-3xl border-2 bg-white/85 p-4 transition-colors ${
@@ -631,32 +754,118 @@ const AppointmentBookingModal = ({
                   )}
 
                   {/* Date selection */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-[#3F2A1E]">
-                      {formik.values.serviceType === 'boarding'
-                        ? t('modal.checkInLabel')
-                        : t('modal.preferredDate')}{' '}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <DatePicker
-                      disableDate={date => date.getDay() === 3}
-                      value={formik.values.selectedDate}
-                      onChange={(value) => formik.setFieldValue('selectedDate', value)}
-                      onBlur={() => formik.setFieldTouched('selectedDate', true)}
-                      placeholder={t('modal.datePlaceholder')}
-                      minDate={getMinDate()}
-                      maxDate={getMaxDate()}
-                      error={!!(formik.touched.selectedDate && formik.errors.selectedDate)}
-                    />
-                    {formik.touched.selectedDate && formik.errors.selectedDate && (
-                      <p className="mt-1 text-sm text-red-600">{formik.errors.selectedDate}</p>
-                    )}
-                  </div>
-
-                  {formik.values.selectedDate && formik.values.serviceType === 'boarding' && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-950">
-                      <p>{t('modal.boardingSlotHint')}</p>
-                      <p className="mt-2 text-xs text-amber-900/85">{t('serviceTypes.boardingNoPrice')}</p>
+                  {formik.values.serviceType === 'boarding' ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[#3F2A1E]">
+                            {t('modal.checkInLabel')} <span className="text-red-500">*</span>
+                          </label>
+                          <DatePicker
+                            disableDate={(date) => {
+                              const ymd = formatDateYmdInput(date);
+                              if (date.getDay() === 3) return true;
+                              if (!ymd) return false;
+                              return isFullOccupancyDay(ymd);
+                            }}
+                            value={formik.values.selectedDate}
+                            onChange={(value) => {
+                              formik.setFieldValue('selectedDate', value);
+                              const defaultCheckout = addOneCalendarDayYmd(value);
+                              const currentCheckout = formatDateYmdInput(formik.values.checkOutDate);
+                              const maxCheckout = addDaysToYmd(value, MAX_BOARDING_DAYS);
+                              if (
+                                !currentCheckout ||
+                                currentCheckout <= value ||
+                                currentCheckout > maxCheckout ||
+                                hasAnyFullDayBetween(value, currentCheckout)
+                              ) {
+                                formik.setFieldValue('checkOutDate', defaultCheckout);
+                              }
+                            }}
+                            onBlur={() => formik.setFieldTouched('selectedDate', true)}
+                            placeholder={t('modal.datePlaceholder')}
+                            minDate={getMinDate()}
+                            maxDate={getMaxDate()}
+                            error={!!(formik.touched.selectedDate && formik.errors.selectedDate)}
+                          />
+                          {formik.touched.selectedDate && formik.errors.selectedDate && (
+                            <p className="mt-1 text-sm text-red-600">{formik.errors.selectedDate}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-[#3F2A1E]">
+                            {t('modal.checkOutLabel')} <span className="text-red-500">*</span>
+                          </label>
+                          <DatePicker
+                            disableDate={(date) => {
+                              const checkIn = formatDateYmdInput(formik.values.selectedDate);
+                              const ymd = formatDateYmdInput(date);
+                              if (!checkIn || !ymd) return true;
+                              if (ymd <= checkIn) return true;
+                              if (nightsBetween(checkIn, ymd) > MAX_BOARDING_DAYS) return true;
+                              if (hasAnyFullDayBetween(checkIn, ymd)) return true;
+                              return false;
+                            }}
+                            value={formik.values.checkOutDate}
+                            onChange={(value) => formik.setFieldValue('checkOutDate', value)}
+                            onBlur={() => formik.setFieldTouched('checkOutDate', true)}
+                            placeholder={t('modal.datePlaceholder')}
+                            minDate={addOneCalendarDayYmd(formatDateYmdInput(formik.values.selectedDate || getMinDate()))}
+                            maxDate={addDaysToYmd(
+                              formatDateYmdInput(formik.values.selectedDate || getMinDate()),
+                              MAX_BOARDING_DAYS
+                            )}
+                            error={!!(formik.touched.checkOutDate && formik.errors.checkOutDate)}
+                          />
+                          {formik.touched.checkOutDate && formik.errors.checkOutDate && (
+                            <p className="mt-1 text-sm text-red-600">{formik.errors.checkOutDate as string}</p>
+                          )}
+                        </div>
+                      </div>
+                      {selectedDateStr && checkoutYmd && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-950">
+                          <p>{t('modal.checkInSummary', { date: selectedDateStr })}</p>
+                          <p>{t('modal.checkOutSummary', { date: checkoutYmd })}</p>
+                          <p className="font-semibold">{t('modal.nightsSummary', { nights: boardingNights })}</p>
+                          <p className="mt-2 text-xs text-amber-900/85">
+                            {t('modal.boardingMaxHint', { max: MAX_BOARDING_DAYS })}
+                          </p>
+                        </div>
+                      )}
+                      {loadingBoardingOccupancy ? (
+                        <p className="text-xs text-amber-900/70">{t('modal.occupancyLoading')}</p>
+                      ) : fullBoardingDays.length > 0 ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50/80 p-3 text-xs text-red-700">
+                          <p className="font-semibold">{t('modal.fullDaysTitle')}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {fullBoardingDays.slice(0, 10).map((d) => (
+                              <span key={d} className="rounded bg-red-100 px-2 py-0.5">
+                                {d}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#3F2A1E]">
+                        {t('modal.preferredDate')} <span className="text-red-500">*</span>
+                      </label>
+                      <DatePicker
+                        disableDate={date => date.getDay() === 3}
+                        value={formik.values.selectedDate}
+                        onChange={(value) => formik.setFieldValue('selectedDate', value)}
+                        onBlur={() => formik.setFieldTouched('selectedDate', true)}
+                        placeholder={t('modal.datePlaceholder')}
+                        minDate={getMinDate()}
+                        maxDate={getMaxDate()}
+                        error={!!(formik.touched.selectedDate && formik.errors.selectedDate)}
+                      />
+                      {formik.touched.selectedDate && formik.errors.selectedDate && (
+                        <p className="mt-1 text-sm text-red-600">{formik.errors.selectedDate}</p>
+                      )}
                     </div>
                   )}
 
@@ -723,6 +932,7 @@ const AppointmentBookingModal = ({
                         !formik.values.petId ||
                         !formik.values.serviceType ||
                         !formik.values.selectedDate ||
+                        (formik.values.serviceType === 'boarding' && !formik.values.checkOutDate) ||
                         (formik.values.serviceType !== 'boarding' && !formik.values.selectedTimeSlot)
                       }
                       className="min-w-[120px] bg-amber-500 text-white hover:bg-amber-600"
@@ -772,11 +982,12 @@ const AppointmentBookingModal = ({
                           {formik.values.serviceType === 'boarding' && checkoutYmd ? (
                             <>
                               <p className="text-[#3F2A1E]">
-                                {t('modal.checkInLabel')}: {formatDate(selectedDateStr)}
+                                {t('modal.checkInLabel')}: {selectedDateStr}
                               </p>
                               <p className="text-[#3F2A1E]">
-                                {t('modal.checkOutLabel')}: {formatDate(checkoutYmd)}
+                                {t('modal.checkOutLabel')}: {checkoutYmd}
                               </p>
+                              <p className="text-[#3F2A1E]">{t('modal.nightsSummary', { nights: boardingNights })}</p>
                             </>
                           ) : (
                             <p className="text-[#3F2A1E]">{formatDate(formik.values.selectedDate as string | Date)}</p>
@@ -966,12 +1177,14 @@ const AppointmentBookingModal = ({
                       {formik.values.serviceType === 'boarding' && checkoutYmd ? (
                         <>
                           <strong>
-                            {t('modal.checkInLabel')}: {formatDate(selectedDateStr)}
+                            {t('modal.checkInLabel')}: {selectedDateStr}
                           </strong>
                           <br />
                           <strong>
-                            {t('modal.checkOutLabel')}: {formatDate(checkoutYmd)}
+                            {t('modal.checkOutLabel')}: {checkoutYmd}
                           </strong>
+                          <br />
+                          <strong>{t('modal.nightsSummary', { nights: boardingNights })}</strong>
                           <br />
                         </>
                       ) : (

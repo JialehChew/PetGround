@@ -43,3 +43,11 @@ export async function getAdminClientAppointments(
   return res.data as Appointment[];
 }
 
+export async function updateBoardingDates(
+  appointmentId: string,
+  payload: { checkInDate: string; checkOutDate: string }
+): Promise<Appointment> {
+  const res = await api.put(`/appointments/${appointmentId}/boarding-dates`, payload);
+  return (res.data?.appointment || res.data) as Appointment;
+}
+

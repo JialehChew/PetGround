@@ -10,7 +10,12 @@ import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import type { AdminUserListItem, Appointment, Pet } from "../types";
-import { getAdminClientAppointments, getAdminClientPets, getAdminUsers } from "../services/adminService";
+import {
+  getAdminClientAppointments,
+  getAdminClientPets,
+  getAdminUsers,
+  updateBoardingDates,
+} from "../services/adminService";
 import { petService } from "../services/petService";
 import { toast } from "sonner";
 
@@ -30,6 +35,11 @@ export default function AdminClientDetailPage() {
   const [editingPetId, setEditingPetId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [boardingDialogOpen, setBoardingDialogOpen] = useState(false);
+  const [boardingTarget, setBoardingTarget] = useState<Appointment | null>(null);
+  const [boardingCheckIn, setBoardingCheckIn] = useState("");
+  const [boardingCheckOut, setBoardingCheckOut] = useState("");
+  const [boardingSaving, setBoardingSaving] = useState(false);
 
   const loadData = async (dateParams?: { from?: string; to?: string }) => {
     if (!userId) return;
@@ -80,6 +90,67 @@ export default function AdminClientDetailPage() {
   };
 
   const serviceRows = useMemo(() => appointments, [appointments]);
+
+  const toUtcYmd = (value: string | Date) => {
+    const d = new Date(value);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      d.getUTCDate()
+    ).padStart(2, "0")}`;
+  };
+
+  const calcDays = (checkIn: string, checkOut: string) => {
+    if (!checkIn || !checkOut) return 0;
+    const start = new Date(`${checkIn}T00:00:00Z`);
+    const end = new Date(`${checkOut}T00:00:00Z`);
+    return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  };
+
+  const openBoardingEditor = (appointment: Appointment) => {
+    const checkIn = appointment.checkInDate ? toUtcYmd(appointment.checkInDate) : toUtcYmd(appointment.startTime);
+    const checkOut = appointment.checkOutDate ? toUtcYmd(appointment.checkOutDate) : toUtcYmd(appointment.endTime);
+    setBoardingTarget(appointment);
+    setBoardingCheckIn(checkIn);
+    setBoardingCheckOut(checkOut);
+    setBoardingDialogOpen(true);
+  };
+
+  const closeBoardingEditor = () => {
+    setBoardingDialogOpen(false);
+    setBoardingTarget(null);
+    setBoardingCheckIn("");
+    setBoardingCheckOut("");
+  };
+
+  const saveBoardingDateRange = async () => {
+    if (!boardingTarget) return;
+    if (!boardingCheckIn || !boardingCheckOut) {
+      toast.warning("请先选择入住和离开日期");
+      return;
+    }
+    if (boardingCheckOut <= boardingCheckIn) {
+      toast.warning("离开日期必须晚于入住日期");
+      return;
+    }
+    try {
+      setBoardingSaving(true);
+      const updated = await updateBoardingDates(boardingTarget._id, {
+        checkInDate: boardingCheckIn,
+        checkOutDate: boardingCheckOut,
+      });
+      setAppointments((prev) => prev.map((a) => (a._id === updated._id ? updated : a)));
+      toast.success("住宿天数已更新");
+      closeBoardingEditor();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string; details?: string } } })?.response?.data?.error ||
+        (err as { response?: { data?: { error?: string; details?: string } } })?.response?.data?.details;
+      toast.error("更新失败", {
+        description: msg || "请稍后重试",
+      });
+    } finally {
+      setBoardingSaving(false);
+    }
+  };
 
   const startEditPetNote = (pet: Pet) => {
     setEditingPetId(pet._id);
@@ -350,18 +421,19 @@ export default function AdminClientDetailPage() {
                       <TableHead>{t("clients.serviceColumns.service")}</TableHead>
                       <TableHead>{t("clients.serviceColumns.groomer")}</TableHead>
                       <TableHead>{t("clients.serviceColumns.status")}</TableHead>
+                      <TableHead>操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-amber-900/75">
+                        <TableCell colSpan={6} className="text-center text-amber-900/75">
                           {t("clients.loading")}
                         </TableCell>
                       </TableRow>
                     ) : serviceRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-amber-900/75">
+                        <TableCell colSpan={6} className="text-center text-amber-900/75">
                           {t("clients.noServiceRecords")}
                         </TableCell>
                       </TableRow>
@@ -395,6 +467,22 @@ export default function AdminClientDetailPage() {
                                 : a.status}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            {a.serviceType === "boarding" &&
+                            (a.status === "confirmed" || a.status === "in_progress") ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="rounded-xl border-amber-300 bg-white text-amber-900 hover:bg-amber-50"
+                                onClick={() => openBoardingEditor(a)}
+                              >
+                                修改住宿天数
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-amber-900/60">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -403,6 +491,69 @@ export default function AdminClientDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {boardingDialogOpen && boardingTarget && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/45" onClick={closeBoardingEditor} />
+              <div className="relative w-full max-w-md rounded-3xl border-2 border-amber-200 bg-white p-5 shadow-2xl">
+                <h3 className="text-lg font-bold text-amber-950">修改住宿天数</h3>
+                <p className="mt-1 text-xs text-amber-900/75">
+                  预约编号：{boardingTarget._id.slice(-8).toUpperCase()} | 当前天数：
+                  {calcDays(
+                    boardingTarget.checkInDate
+                      ? toUtcYmd(boardingTarget.checkInDate)
+                      : toUtcYmd(boardingTarget.startTime),
+                    boardingTarget.checkOutDate
+                      ? toUtcYmd(boardingTarget.checkOutDate)
+                      : toUtcYmd(boardingTarget.endTime)
+                  )}
+                  天
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  <div>
+                    <p className="mb-1 text-xs text-amber-900/75">入住日期</p>
+                    <Input
+                      type="date"
+                      value={boardingCheckIn}
+                      onChange={(e) => setBoardingCheckIn(e.target.value)}
+                      className="rounded-2xl border-amber-200 bg-white/90"
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-amber-900/75">离开日期（不包含当天）</p>
+                    <Input
+                      type="date"
+                      value={boardingCheckOut}
+                      onChange={(e) => setBoardingCheckOut(e.target.value)}
+                      className="rounded-2xl border-amber-200 bg-white/90"
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-2 text-xs text-amber-900">
+                    新住宿天数：{calcDays(boardingCheckIn, boardingCheckOut)} 天
+                  </div>
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl border-amber-300 bg-white text-amber-900 hover:bg-amber-50"
+                    onClick={closeBoardingEditor}
+                    disabled={boardingSaving}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600"
+                    onClick={() => void saveBoardingDateRange()}
+                    disabled={boardingSaving}
+                  >
+                    {boardingSaving ? "保存中..." : "保存"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </PageTransition>

@@ -12,6 +12,7 @@ const { normalizeToMinute, normalizeToUtcDayStart } = require("../utils/date");
 const SLOT_CONFLICT_MESSAGE = "该时间段已被预约";
 const SLOT_CONFLICT_CODE = "SLOT_CONFLICT";
 const BOARDING_CAPACITY = 8;
+const MAX_BOARDING_DAYS = 30;
 const BOARDING_CAPACITY_FULL_CODE = "BOARDING_CAPACITY_FULL";
 const BOARDING_CAPACITY_FULL_MESSAGE = "寄宿容量已满";
 const CONFLICT_GROUPS = {
@@ -399,6 +400,74 @@ async function saveAppointmentUpdateWithSlotGuard(appointmentDoc, excludeAppoint
   }
 }
 
+/**
+ * Boarding date-only update guard:
+ * 1) serialize affected boarding days by lock docs
+ * 2) re-check daily capacity in same transaction
+ * 3) save appointment
+ */
+async function saveBoardingDateUpdateWithCapacityGuard(appointmentDoc, excludeAppointmentId) {
+  const { checkInDate, checkOutDate } = resolveBoardingDateRange(appointmentDoc);
+  const lockIds = getBoardingLockIds(appointmentDoc.groomerId, checkInDate, checkOutDate);
+  const session = await mongoose.startSession();
+
+  const work = async (sess) => {
+    for (const lockId of lockIds) {
+      await GroomerDayLock.findOneAndUpdate(
+        { _id: lockId },
+        { $inc: { seq: 1 } },
+        { upsert: true, session: sess }
+      );
+    }
+    const available = await isBoardingAvailable({
+      groomerId: appointmentDoc.groomerId,
+      checkInDate,
+      checkOutDate,
+      capacity: BOARDING_CAPACITY,
+      excludeAppointmentId,
+      session: sess,
+    });
+    if (!available) {
+      throwBoardingCapacityFull();
+    }
+    await appointmentDoc.save({ session: sess });
+  };
+
+  try {
+    await session.withTransaction(
+      async () => {
+        await work(session);
+      },
+      {
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority" },
+      }
+    );
+  } catch (err) {
+    if (isTransactionUnsupportedError(err)) {
+      for (const lockId of lockIds) {
+        await GroomerDayLock.findOneAndUpdate({ _id: lockId }, { $inc: { seq: 1 } }, { upsert: true });
+      }
+      const available = await isBoardingAvailable({
+        groomerId: appointmentDoc.groomerId,
+        checkInDate,
+        checkOutDate,
+        capacity: BOARDING_CAPACITY,
+        excludeAppointmentId,
+      });
+      if (!available) {
+        throwBoardingCapacityFull();
+      }
+      await appointmentDoc.save();
+      return;
+    }
+    if (err?.isCapacityFull) throw err;
+    throw err;
+  } finally {
+    await session.endSession();
+  }
+}
+
 function isDuplicateKeyError(err) {
   return err && (err.code === 11000 || err.code === 11001);
 }
@@ -439,6 +508,7 @@ module.exports = {
   SLOT_CONFLICT_MESSAGE,
   SLOT_CONFLICT_CODE,
   BOARDING_CAPACITY,
+  MAX_BOARDING_DAYS,
   BOARDING_CAPACITY_FULL_CODE,
   slotConflictBody,
   boardingCapacityBody,
@@ -447,6 +517,7 @@ module.exports = {
   insertAppointmentWithSlotGuard,
   insertAppointmentWithAutoAssignedGroomer,
   saveAppointmentUpdateWithSlotGuard,
+  saveBoardingDateUpdateWithCapacityGuard,
   isBoardingAvailable,
   countBoardingOccupancyForDay,
   resolveBoardingDateRange,
