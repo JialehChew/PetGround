@@ -11,6 +11,9 @@ const { normalizeToMinute } = require("../utils/date");
 /** HTTP 409 body for i18n (frontend maps code → locale string). */
 const SLOT_CONFLICT_MESSAGE = "该时间段已被预约";
 const SLOT_CONFLICT_CODE = "SLOT_CONFLICT";
+const BOARDING_CAPACITY = 8;
+const BOARDING_CAPACITY_FULL_CODE = "BOARDING_CAPACITY_FULL";
+const BOARDING_CAPACITY_FULL_MESSAGE = "寄宿容量已满";
 const CONFLICT_GROUPS = {
   grooming: ["basic", "full"],
   boarding: ["boarding"],
@@ -34,6 +37,13 @@ function slotConflictBody() {
   return {
     message: SLOT_CONFLICT_MESSAGE,
     code: SLOT_CONFLICT_CODE,
+  };
+}
+
+function boardingCapacityBody() {
+  return {
+    message: BOARDING_CAPACITY_FULL_MESSAGE,
+    code: BOARDING_CAPACITY_FULL_CODE,
   };
 }
 
@@ -82,6 +92,36 @@ async function findBlockingOverlap(
     isoStart: normalizedStart.toISOString(),
     isoEnd: normalizedEnd.toISOString(),
   });
+  if (newServiceType === "boarding") {
+    const countQ = Appointment.countDocuments({
+      groomerId,
+      serviceType: "boarding",
+      startTime: { $lt: normalizedEnd },
+      endTime: { $gt: normalizedStart },
+      status: { $nin: ["cancelled", "completed"] },
+      ...(excludeAppointmentId && {
+        _id: {
+          $ne: mongoose.isValidObjectId(excludeAppointmentId)
+            ? new mongoose.Types.ObjectId(excludeAppointmentId)
+            : excludeAppointmentId,
+        },
+      }),
+    });
+    if (session) countQ.session(session);
+    const count = await countQ;
+    if (excludeAppointmentId) {
+      console.log("BOARDING LOAD:", {
+        groomerId: String(groomerId),
+        count,
+        capacity: BOARDING_CAPACITY,
+      });
+    }
+    if (count >= BOARDING_CAPACITY) {
+      throwBoardingCapacityFull();
+    }
+    return null;
+  }
+
   const q = Appointment.findOne(filter).select("_id startTime endTime status serviceType groomerId");
   if (session) q.session(session);
   const existing = await q.lean();
@@ -121,6 +161,14 @@ function throwSlotConflict() {
   err.statusCode = 409;
   err.code = SLOT_CONFLICT_CODE;
   err.isSlotConflict = true;
+  throw err;
+}
+
+function throwBoardingCapacityFull() {
+  const err = new Error(BOARDING_CAPACITY_FULL_MESSAGE);
+  err.statusCode = 409;
+  err.code = BOARDING_CAPACITY_FULL_CODE;
+  err.isCapacityFull = true;
   throw err;
 }
 
@@ -249,6 +297,7 @@ function isDuplicateKeyError(err) {
  * @returns {Promise<any>} the saved appointment doc
  */
 async function insertAppointmentWithAutoAssignedGroomer(buildAppointmentDoc, groomerIds) {
+  let sawBoardingCapacityFull = false;
   for (const groomerId of groomerIds) {
     const doc = buildAppointmentDoc(groomerId);
     try {
@@ -256,18 +305,28 @@ async function insertAppointmentWithAutoAssignedGroomer(buildAppointmentDoc, gro
       return doc;
     } catch (err) {
       if (err?.isSlotConflict) continue;
+      if (err?.isCapacityFull) {
+        sawBoardingCapacityFull = true;
+        continue;
+      }
       if (isDuplicateKeyError(err)) continue;
       throw err;
     }
   }
   // no groomer can take this slot
+  if (sawBoardingCapacityFull) {
+    throwBoardingCapacityFull();
+  }
   throwSlotConflict();
 }
 
 module.exports = {
   SLOT_CONFLICT_MESSAGE,
   SLOT_CONFLICT_CODE,
+  BOARDING_CAPACITY,
+  BOARDING_CAPACITY_FULL_CODE,
   slotConflictBody,
+  boardingCapacityBody,
   buildOverlapFilter,
   findBlockingOverlap,
   insertAppointmentWithSlotGuard,

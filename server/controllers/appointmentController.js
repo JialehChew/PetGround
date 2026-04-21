@@ -19,12 +19,19 @@ const {
   insertAppointmentWithAutoAssignedGroomer,
   saveAppointmentUpdateWithSlotGuard,
   slotConflictBody,
+  boardingCapacityBody,
+  BOARDING_CAPACITY_FULL_CODE,
   isDuplicateKeyError,
 } = require("../services/appointmentService");
 const { ensureUTCMinuteDate, normalizeToMinute } = require("../utils/date");
 
 function respondSlotConflict(res) {
   const body = slotConflictBody();
+  return res.status(409).json({ ...body, error: body.message });
+}
+
+function respondBoardingCapacityFull(res) {
+  const body = boardingCapacityBody();
   return res.status(409).json({ ...body, error: body.message });
 }
 
@@ -163,6 +170,7 @@ exports.createAppointment = async (req, res) => {
       try {
         await insertAppointmentWithSlotGuard(newAppointment);
       } catch (err) {
+        if (err?.code === BOARDING_CAPACITY_FULL_CODE) return respondBoardingCapacityFull(res);
         if (err?.isSlotConflict) return respondSlotConflict(res);
         if (isDuplicateKeyError(err)) return respondSlotConflict(res);
         throw err;
@@ -176,6 +184,7 @@ exports.createAppointment = async (req, res) => {
       try {
         newAppointment = await insertAppointmentWithAutoAssignedGroomer(buildAppointment, groomerIds);
       } catch (err) {
+        if (err?.code === BOARDING_CAPACITY_FULL_CODE) return respondBoardingCapacityFull(res);
         if (err?.isSlotConflict) return respondSlotConflict(res);
         if (isDuplicateKeyError(err)) return respondSlotConflict(res);
         throw err;
@@ -375,6 +384,7 @@ exports.createAppointmentAsGroomer = async (req, res) => {
     try {
       await insertAppointmentWithSlotGuard(newAppointment);
     } catch (err) {
+      if (err?.code === BOARDING_CAPACITY_FULL_CODE) return respondBoardingCapacityFull(res);
       if (err?.isSlotConflict) return respondSlotConflict(res);
       if (isDuplicateKeyError(err)) return respondSlotConflict(res);
       throw err;
@@ -681,6 +691,7 @@ exports.updateAppointment = async (req, res) => {
     try {
       await saveAppointmentUpdateWithSlotGuard(appointment, appointment._id);
     } catch (err) {
+      if (err?.code === BOARDING_CAPACITY_FULL_CODE) return respondBoardingCapacityFull(res);
       if (err?.isSlotConflict) return respondSlotConflict(res);
       if (isDuplicateKeyError(err)) return respondSlotConflict(res);
       throw err;
