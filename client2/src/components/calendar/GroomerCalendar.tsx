@@ -16,7 +16,7 @@ import type { Appointment } from '../../types';
 import AppointmentDetailsDialog from './AppointmentDetailsDialog';
 import TimeBlockCreationDialog from './TimeBlockCreationDialog';
 import TimeBlockDetailsDialog from './TimeBlockDetailsDialog';
-import { getOccupancyColor } from '../../utils/occupancy';
+import { getOccupancyBgColor, getOccupancyColor, getOccupancyIndicator } from '../../utils/occupancy';
 import './GroomerCalendar.css';
 
 // FullCalendar event interface
@@ -92,10 +92,19 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
       );
     }
     const color = getOccupancyColor(item.occupied, item.capacity);
+    const bgColor = getOccupancyBgColor(item.occupied, item.capacity);
+    const indicator = getOccupancyIndicator(item.occupied, item.capacity);
+    const tooltip = `${item.occupied} / ${item.capacity} slots used`;
     return (
       <div>
         <div>{arg.dayNumberText}</div>
-        <span className={`text-xs font-semibold ${color}`}>{`${item.occupied} / ${item.capacity}`}</span>
+        <span
+          title={tooltip}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold ${color} ${bgColor}`}
+        >
+          <span>{indicator}</span>
+          <span>{`${item.occupied} / ${item.capacity}`}</span>
+        </span>
       </div>
     );
   };
@@ -107,11 +116,20 @@ const GroomerCalendar = forwardRef<FullCalendar, GroomerCalendarProps>(({
     )}-${String(arg.date.getUTCDate()).padStart(2, '0')}`;
     const item = occupancyMap.get(ymd);
     const color = item ? getOccupancyColor(item.occupied, item.capacity) : "text-gray-400";
+    const bgColor = item ? getOccupancyBgColor(item.occupied, item.capacity) : "bg-gray-100";
+    const indicator = item ? getOccupancyIndicator(item.occupied, item.capacity) : "⚪";
     const occupancyText = item ? `${item.occupied} / ${item.capacity}` : "- / -";
+    const tooltip = item ? `${item.occupied} / ${item.capacity} slots used` : "No occupancy data";
     return (
       <div className="flex flex-col items-center leading-tight">
         <span>{arg.text}</span>
-        <span className={`text-xs font-semibold ${color}`}>{occupancyText}</span>
+        <span
+          title={tooltip}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold ${color} ${bgColor}`}
+        >
+          <span>{indicator}</span>
+          <span>{occupancyText}</span>
+        </span>
       </div>
     );
   };
